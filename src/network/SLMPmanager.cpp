@@ -12,7 +12,7 @@ void SLMPmanager::frameHandler(uint8_t *data, size_t packetSize, IPAddress remot
     uint16_t resPayloadLen = 0; // Długość danych *po* End Code
     if (packetSize < 21 || _reqBuffer[0] != 0x50 || _reqBuffer[1] != 0x00)
     {
-        Serial.println("Odebrano niewłaściwy pakiet SLMP.");
+        Serial.println("Odebrano niewłaściwy pakiet.");
         return;
     };
     // 2. Ekstrakcja pól z żądania
@@ -37,7 +37,8 @@ void SLMPmanager::frameHandler(uint8_t *data, size_t packetSize, IPAddress remot
             {
                 for (int i = 0; i < count; i++)
                 {
-                    uint16_t val = servo->getAllParameters(i);
+                    ServoDevice::RealParameter param = ServoDevice::toRealParameter(i);
+                    uint16_t val = servo->getAllParameters(param);
                     *resPayloadPtr++ = (val & 0xFF);
                     *resPayloadPtr++ = (val >> 8);
                 }
@@ -63,16 +64,17 @@ void SLMPmanager::frameHandler(uint8_t *data, size_t packetSize, IPAddress remot
             {
                 for (int i = 0; i < count; i++)
                 {
+                    ServoDevice::ParameterServo param = ServoDevice::toParameterServo(i);
                     if (i < 5)
                     {
-                        uint32_t val = *reqPayloadPtr | (*(reqPayloadPtr + 1) << 8) | (*(reqPayloadPtr + 1) << 16) | (*(reqPayloadPtr + 1) << 24);
-                        servo->setParameters(i, val); // Zapis do serwa
+                        uint32_t val = *reqPayloadPtr | (*(reqPayloadPtr + 1) << 8) | (*(reqPayloadPtr + 2) << 16) | (*(reqPayloadPtr + 3) << 24);
+                        servo->setParameters(param, val); // Zapis do serwa
                         reqPayloadPtr += 4;
                     }
                     else
                     {
                         uint16_t val = *reqPayloadPtr | (*(reqPayloadPtr + 1) << 8);
-                        servo->setParameters(i, val); // Zapis do serwa
+                        servo->setParameters(param, val); // Zapis do serwa
                         reqPayloadPtr += 2;
                     }
                 }

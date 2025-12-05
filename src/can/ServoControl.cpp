@@ -1,6 +1,6 @@
 #include "ServoControl.h"
 
-ServoControl::ServoControl(CanManager &can, SLMPmanager &slmp)
+ServoControl::ServoControl(CanManager &can)
     : can(can), slmp(slmp)
 { // ustawienie onFrame jako funkcji wywołującej parsCanFrame (callback)
     can.onReadFrame = [this](const CanFrame &frame)
@@ -80,8 +80,8 @@ void ServoControl::parseCanTxFrame(CanFrame &frame, int id)
         frame.data[3] = (servo->position >> 0) & 0xFF;
         frame.data[4] = (servo->speed16 >> 8) & 0xFF;
         frame.data[5] = (servo->speed16 >> 0) & 0xFF;
-        frame.data[4] = (servo->acceleration >> 8) & 0xFF;
-        frame.data[5] = (servo->acceleration >> 0) & 0xFF;
+        frame.data[6] = (servo->acceleration >> 8) & 0xFF;
+        frame.data[7] = (servo->acceleration >> 0) & 0xFF;
         break;
     case MITVelocityLoop:
         frame.data[0] = 0xAA;
@@ -113,18 +113,18 @@ void ServoControl::parseCanRxFrame(const CanFrame &frame)
     const int id = frame.identifier & 0xFF;
     ServoDevice *servo = getServo(id);
     int value = 0;
-
     for (int i; i < 7; i++)
     {
+        ServoDevice::ParameterServo param = ServoDevice::toParameterServo(i);
         if (i < 6 && !(i % 2))
         {
             value = (frame.data[i + 1] << 8) | frame.data[i];
-            servo->setParameters(i, value);
+            servo->setParameters(param, value);
         }
         else if (i > 5)
         {
             value = frame.data[i];
-            servo->setParameters(i, value);
+            servo->setParameters(param, value);
         };
     }
 };
@@ -149,3 +149,28 @@ void ServoControl::parseSLMPFrameRx(int frame) {
 void ServoControl::parseSLMPFrameTx(int frame) {
 
 };
+
+// ################# FUNKCJE POMOCNICZE #####################
+
+String ServoControl::listServoIDs()
+{
+    String idList = "Dostępne serwa [ID]: ";
+
+    if (servos.empty())
+    {
+        idList += "brak dostępnych serw :C";
+        return idList;
+    };
+    bool firstID = true;
+    for (const auto &pair : servos)
+    {
+        if (!firstID)
+        {
+            idList += ', ';
+        };
+        idList += String(pair.first);
+        firstID = false;
+    };
+    idList += ".\r\n";
+    return idList;
+}

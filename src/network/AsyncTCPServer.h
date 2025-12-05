@@ -11,6 +11,8 @@ private:
 
 public:
     void start(uint16_t port);
+    std::function<void(uint8_t *, size_t, AsyncClient *)> onClientData;
+    std::function<void(AsyncClient *client)> onClientConnect;
 };
 
 #endif

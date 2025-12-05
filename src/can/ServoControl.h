@@ -28,9 +28,9 @@ private:
     };
 
 public:
-    ServoControl(CanManager &can, SLMPmanager &slmp);
-
+    ServoControl(CanManager &can);
     void setServo(int8_t id);
+    String listServoIDs();
     ServoDevice *getServo(int8_t id);
     void parseCanRxFrame(const CanFrame &frame);
     void parseCanTxFrame(CanFrame &frame, int id);

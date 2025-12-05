@@ -7,7 +7,7 @@ class ServoDevice
 {
 private:
     int8_t _id;
-    uint8_t _servoMode;
+    uint8_t _servoMode = 99;
     int16_t _actualPosition;
     int16_t _actualSpeed;
     int16_t _actualCurrent;
@@ -16,6 +16,30 @@ private:
     int16_t _speed16 = (int16_t)speed;
 
 public:
+    enum class RealParameter : uint8_t
+    {
+        SERVO_ID,
+        SERVO_MODE,
+        POSITION,
+        SPEED,
+        CURRENT,
+        ERROR,
+        TEMPERATURE,
+        INVALID_PARAM
+    };
+
+    enum class ParameterServo : uint8_t
+    {
+        CURRENT,
+        BRAKE_CURRENT,
+        SPEED,
+        POSITION,
+        ACCELERATION,
+        FACTOR_KP,
+        FACTOR_KD,
+        INVALID_PARAM
+    };
+
     int32_t current = 0;      // wartości od -60000 do 600000 co reprezentuje -60A - 60A
     int32_t brakeCurrent = 0; // wartości od 0 do 600000 co reprezentuje 0A - 60A
     int32_t speed = 0;        // wartości od -100000 do 100000 co reprezentuje -100000 do 100000 electrical RPM - dla position loop -32767 do 32676 bo przekazujemy int16
@@ -31,13 +55,13 @@ public:
     void readPrivateServoState();
     uint8_t getID();
     uint8_t getServoMode();
-    int16_t getActualPosition();
-    int16_t getActualSpeed();
-    int16_t getActualCurrent();
-    int8_t getReadErrorCode();
-    int8_t getActualTemperature();
-    int16_t getAllParameters(uint16_t parIndex);
-    void setParameters(uint16_t parIndex, uint32_t value);
+    int16_t getAllParameters(RealParameter parName);
+    void setParameters(ParameterServo parName, uint32_t value);
+    void setServoMode(int8_t mode);
+    void setZero();
+
+    static RealParameter toRealParameter(int value);
+    static ParameterServo toParameterServo(int value);
 
     ServoDevice(int8_t ID)
     {

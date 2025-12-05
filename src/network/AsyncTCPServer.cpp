@@ -19,13 +19,17 @@ void AsyncTcpServer::onClient(AsyncClient *client)
 {
     Serial.println("[AsyncTCP] Client connected");
 
-    client->onData([](void *arg, AsyncClient *c, void *data, size_t len)
+    if (this->onClientConnect)
+    {
+        this->onClientConnect(client);
+    };
+
+    client->onData([this](void *arg, AsyncClient *c, void *data, size_t len)
                    {
                        uint8_t *d = (uint8_t *)data;
-                       Serial.printf("[AsyncTCP] RX (%d bytes): ", len);
-                       for (size_t i = 0; i < len; i++)
-                           Serial.printf("%02X ", d[i]);
-                       Serial.println();
+                        if(this -> onClientData){
+                            this -> onClientData(d, len, c);
+                        };
 
                        // echo back
                        c->write((const char*)data, len); },
