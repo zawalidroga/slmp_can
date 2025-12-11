@@ -27,6 +27,9 @@ public:
 
     void begin();
     void loop();
+
+    AsyncUdpManager &getUdpManager();
+    AsyncTcpServer &getTcpServer();
 };
 
 #endif

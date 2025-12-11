@@ -17,22 +17,26 @@ void AsyncTcpServer::start(uint16_t port)
 
 void AsyncTcpServer::onClient(AsyncClient *client)
 {
+
     Serial.println("[AsyncTCP] Client connected");
 
     if (this->onClientConnect)
     {
+        Serial.println("[AsyncTCP] onClientConnected działa");
         this->onClientConnect(client);
     };
 
     client->onData([this](void *arg, AsyncClient *c, void *data, size_t len)
                    {
                        uint8_t *d = (uint8_t *)data;
-                        if(this -> onClientData){
-                            this -> onClientData(d, len, c);
-                        };
+                       if (this->onClientData)
+                       {
+                           this->onClientData(d, len, c);
+                       };
 
                        // echo back
-                       c->write((const char*)data, len); },
+                       // c->write((const char*)data, len);
+                   },
                    nullptr);
 
     client->onDisconnect([](void *arg, AsyncClient *c)

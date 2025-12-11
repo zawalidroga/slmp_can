@@ -22,6 +22,28 @@ void CanManager::begin()
             delay(5000);
         }
     };
+    // if (_canSendQueue == NULL)
+    // {
+    //     Serial.println("FATAL: Nie udało się utworzyć kolejki CAN!");
+    // };
+
+    xTaskCreatePinnedToCore(
+        CanManager::_canSendTask,
+        "CANSendTask",
+        4096,
+        this,
+        2,
+        &_sendTaskHandle,
+        0);
+
+    xTaskCreatePinnedToCore(
+        CanManager::_canReadTask,
+        "CANReadTask",
+        4096,
+        this,
+        1,
+        &_readTaskHandle,
+        0);
 
     Serial.println("CAN Uruchomiony. Oczekiwanie na ramki...");
 };
@@ -34,18 +56,37 @@ void CanManager::readFrame()
     };
 };
 
-void CanManager::writeFrame()
+void CanManager::_canSendTask(void *pvParameters)
 {
-    vTaskDelay(pdMS_TO_TICKS(1000));
-    TickType_t xLastWakeTime = xTaskGetTickCount();
-    const TickType_t xFrequency = pdMS_TO_TICKS(_send_interval);
+    CanManager *manager = (CanManager *)pvParameters;
+    CanFrame frameToSend;
 
     for (;;)
     {
-        for (int i = 0; i < deviceNo(); i++)
+
+        if (manager->onWriteFrame && manager->deviceNo)
         {
-            onWriteFrame(txFrame, i);
-            ESP32Can.writeFrame(txFrame, 1000);
-        }
-    }
+            std::vector<uint8_t> servoIDs = manager->getServosIDs();
+            if (!servoIDs.empty())
+            {
+                for (uint8_t id : servoIDs)
+                {
+                    manager->onWriteFrame(manager->txFrame, id);
+                    ESP32Can.writeFrame(manager->txFrame);
+                    vTaskDelay(pdMS_TO_TICKS(5)); // robi mini delay żeby nie zapchać magistrali
+                }
+            }
+        };
+        vTaskDelay(pdMS_TO_TICKS(5));
+    };
 };
+
+void CanManager::_canReadTask(void *pvParameters)
+{
+    CanManager *manager = (CanManager *)pvParameters;
+    for (;;)
+    {
+        manager->readFrame();
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+}

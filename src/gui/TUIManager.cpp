@@ -12,10 +12,12 @@ void TUIManager::handleCommand(const String &command, ServoControl &servoControl
     switch (_currentState)
     {
     case WindowState::MAIN_MENU:
+        Serial.println("[TuiManager] Main menu");
         _mainMenuHandler(command);
         break;
 
     case WindowState::SERVO_CONTROL:
+        Serial.println("[TuiManager] ServoControl");
         _servoControlHandler(command);
         break;
 
@@ -26,7 +28,7 @@ void TUIManager::handleCommand(const String &command, ServoControl &servoControl
         break;
 
     case WindowState::SERVO_MONITOR:
-
+        Serial.println("[TuiManager] Servo monitor");
         if (_activeServo)
         {
             _printServoControl();
@@ -40,24 +42,30 @@ void TUIManager::handleCommand(const String &command, ServoControl &servoControl
         break;
 
     case WindowState::SERVO_SETTINGS:
-
+        Serial.println("[TuiManager] Servo setting");
         break;
 
     case WindowState::SERVO_GO:
+        Serial.println("[TuiManager] Servo go");
         if (_isAllDigit(command))
         {
-
             _servoControl.getServo(_activeServo)->position = command.toInt();
+            //_currentState = WindowState::SERVO_CONTROL;
+            _printServoGO();
+        } else if(command == "EXIT"){
             _currentState = WindowState::SERVO_CONTROL;
+            _printServoControl();
         }
         else
         {
-            _activeClient->write("wracamy do menu, jak nie umiesz wpisać poprawnie");
+            _activeClient->write("wracamy do menu, jak nie umiesz wpisać poprawnie\r\n");
             _currentState = WindowState::MAIN_MENU;
+            _printMainMenu();
         }
         break;
 
     case WindowState::PARAM_SETTING:
+        Serial.println("[TuiManager] PArameter setting");
         if (_isAllDigit(command))
         {
             if (_servoControl.getServo(_activeServo) != nullptr)
@@ -71,6 +79,9 @@ void TUIManager::handleCommand(const String &command, ServoControl &servoControl
                 {
                     _servoControl.getServo(_activeServo)->acceleration = command.toInt();
                 };
+                _servoControl.saveServoState(_activeServo);
+                _currentState = WindowState::SERVO_CONTROL;
+                _printServoControl();
             }
             else
             {
@@ -92,7 +103,9 @@ void TUIManager::handleCommand(const String &command, ServoControl &servoControl
             if (servoControl.getServo(servoId) != nullptr)
             {
                 _activeServo = servoId;
+                _activeClient->write("servo wybrane! \r\n");
                 _currentState = WindowState::SERVO_CONTROL;
+                _printServoControl();
             }
             else
             {
@@ -110,11 +123,14 @@ void TUIManager::handleCommand(const String &command, ServoControl &servoControl
         break;
 
     case WindowState::ADD_SERWO:
+        Serial.println("[TuiManager] Dodaj serwo");
         if (_isAllDigit(command))
         {
             int servoId = command.toInt();
             _servoControl.setServo(servoId);
-            _activeClient->write("serwo dodane!");
+            _activeClient->write("serwo dodane!\r\n");
+            _currentState = WindowState::MAIN_MENU;
+            _printMainMenu();
         }
         else
         {
@@ -129,6 +145,8 @@ void TUIManager::handleCommand(const String &command, ServoControl &servoControl
 
 void TUIManager::onNewClientConnect(AsyncClient *client)
 {
+    _activeClient = client;
+
     _currentState = WindowState::MAIN_MENU;
     String clientIP = client->remoteIP().toString();
     String IPMsg = "Użytkownik o IP " + clientIP + " jest debilem.\r\n";
@@ -145,10 +163,13 @@ void TUIManager::onNewClientConnect(AsyncClient *client)
 // ekran
 void TUIManager::_printMainMenu()
 {
-    String actualServoID = "Servo ID: " + _activeServo;
+
     _activeClient->write("===================MAIN MENU====================\r\n");
     _activeClient->write(_servoControl.listServoIDs().c_str());
-    _activeClient->write(actualServoID.c_str());
+    _activeClient->write("\r\n");
+    _activeClient->write("Aktywne serwo: ");
+    _activeClient->write(String(_activeServo).c_str());
+    _activeClient->write(".\r\n");
     _activeClient->write("Wpisz liczbę do otrzymania odpowiedniej komendy:\r\n");
     _activeClient->write("[0] Ustawienia POLPAKEX \r\n");
     _activeClient->write("[1] Ustawienia Serw\r\n");
@@ -163,13 +184,13 @@ void TUIManager::_printMainMenu()
 // obsługa
 void TUIManager::_mainMenuHandler(const String &c)
 {
-    if (_isAllDigit(c))
+    if (!_isAllDigit(c))
         return;
     switch (c.toInt())
     {
     case 0:
         //_currentState = WindowState::PPCAN_SETTINGS;
-        _activeClient->write("wybierz coś innego, jeszcze nie skończone");
+        _activeClient->write("wybierz coś innego, jeszcze nie skończone\r\n");
         break;
 
     case 1:
@@ -182,12 +203,22 @@ void TUIManager::_mainMenuHandler(const String &c)
         break;
 
     case 3:
-        for (int i; i < 7; i++)
+        if (_activeServo && _servoControl.getServo(_activeServo) != nullptr)
         {
-            ServoDevice::RealParameter param = ServoDevice::toRealParameter(i);
-            int value = _servoControl.getServo(_activeServo)->getAllParameters(param);
-            _printServoMonitor(value, param);
+            for (int i = 0; i < 7; i++)
+            {
+                ServoDevice::RealParameter param = ServoDevice::toRealParameter(i);
+                int value = _servoControl.getServo(_activeServo)->getAllParameters(param);
+                _printServoMonitor(value, param);
+            }
         }
+        else
+        {
+            String txt = "ID serwa: " + _activeServo;
+            _activeClient->write("Błędne ID serwa \r\n");
+            _activeClient->write(txt.c_str());
+            _activeClient->write("\r\n");
+        };
 
         _currentState = WindowState::MAIN_MENU;
         break;
@@ -203,10 +234,14 @@ void TUIManager::_mainMenuHandler(const String &c)
         break;
 
     case 6:
+        _currentState = WindowState::SERVO_MONITOR;
+        break;
+    case 7:
         _currentState = WindowState::UR_MAMA_MONITOR;
         break;
     default:
         _activeClient->write("coś Ty tu napisał za bzdury? jeszcze raz.");
+        break;
     }
 }
 // ################################################################
@@ -215,18 +250,23 @@ void TUIManager::_mainMenuHandler(const String &c)
 // ekran
 void TUIManager::_printServoControl()
 {
-    String actualServoID = "Servo ID: " + _activeServo;
+
     _activeClient->write("=================SERVO CONTROL==================\r\n");
     _activeClient->write(_servoControl.listServoIDs().c_str());
-    _activeClient->write(actualServoID.c_str());
+    _activeClient->write("\r\n");
+    _activeClient->write("Aktywne serwo: ");
+    _activeClient->write(String(_activeServo).c_str());
+    _activeClient->write(".\r\n");
     _activeClient->write("Wpisz liczbę do otrzymania odpowiedniej komendy:\r\n");
     _activeClient->write("[0] Włącz serwo \r\n");
     _activeClient->write("[1] Ustaw przyśpieszenie\r\n");
     _activeClient->write("[2] Ustaw prędkość\r\n");
     _activeClient->write("[3] Wyzeruj pozycje\r\n");
+    _activeClient->write("[4] Wyłącz serwo\r\n");
     _activeClient->write("[GO] Jedź na pozycje\r\n");
     _activeClient->write("[EXIT] Wyjście\r\n");
     _activeClient->write("================================================\r\n");
+    Serial.print(_activeServo);
 };
 
 // obsługa
@@ -238,7 +278,7 @@ void TUIManager::_servoControlHandler(const String &c)
         if (_servoControl.getServo(_activeServo) != nullptr)
         {
             _servoControl.getServo(_activeServo)->setServoMode(6);
-            _activeClient->write("Servo załączone.");
+            _activeClient->write("Servo załączone. \r\n");
             _printServoControl();
         }
         else
@@ -264,7 +304,14 @@ void TUIManager::_servoControlHandler(const String &c)
     }
     else if (c == "3")
     {
+        _servoControl.getServo(_activeServo)->setServoMode(6); //
+        _activeClient->write("Servo załączone. \r\n");
+        _printServoControl();
         _servoControl.getServo(_activeServo)->setZero();
+    }
+    else if (c == "4")
+    {
+        _servoControl.getServo(_activeServo)->setServoMode(99); //
     }
 
     else if (c == "GO")
@@ -274,7 +321,8 @@ void TUIManager::_servoControlHandler(const String &c)
     else if (c == "EXIT")
     {
         _printMainMenu();
-        _activeServo = 0;
+        _currentState = WindowState::MAIN_MENU;
+        //_activeServo = 0;
     }
     else
     {
@@ -287,7 +335,7 @@ void TUIManager::_printServoGO()
 {
     if (_servoControl.getServo(_activeServo)->servoInPosition)
     {
-        _activeClient->write("wpisz pozycje: ");
+        _activeClient->write("wpisz pozycje lub [EXIT] jeśli chcesz wyjść: ");
         _currentState = WindowState::SERVO_GO;
     }
     else
@@ -303,38 +351,42 @@ void TUIManager::_printServoGO()
 
 void TUIManager::_printServoMonitor(int value, ServoDevice::RealParameter param)
 {
-    String txt;
+    if (!_activeClient || !_activeClient->connected())
+    {
+        return;
+    };
     switch (param)
     {
     case ServoDevice::RealParameter::SERVO_ID:
-        txt = "ID: " + value;
-        _activeClient->write(txt.c_str());
+        _activeClient->write("ID: ");
+        _activeClient->write(String(value).c_str());
         break;
     case ServoDevice::RealParameter::SERVO_MODE:
-        txt = "Servo Mode: " + value;
-        _activeClient->write(txt.c_str());
+        _activeClient->write("Mode: ");
+        _activeClient->write(String(value).c_str());
         break;
     case ServoDevice::RealParameter::POSITION:
-        txt = "Aktualna pozycja: " + value;
-        _activeClient->write(txt.c_str());
+        _activeClient->write("Pozycja: ");
+        _activeClient->write(String(value).c_str());
         break;
     case ServoDevice::RealParameter::SPEED:
-        txt = "Aktualna prędkość: " + value;
-        _activeClient->write(txt.c_str());
+        _activeClient->write("Prędkość: ");
+        _activeClient->write(String(value).c_str());
         break;
     case ServoDevice::RealParameter::CURRENT:
-        txt = "Aktualne natężenie: " + value;
-        _activeClient->write(txt.c_str());
+        _activeClient->write("Natężenie: ");
+        _activeClient->write(String(value).c_str());
         break;
     case ServoDevice::RealParameter::ERROR:
-        txt = "Error: " + value;
-        _activeClient->write(txt.c_str());
+        _activeClient->write("Error: ");
+        _activeClient->write(String(value).c_str());
         break;
     case ServoDevice::RealParameter::TEMPERATURE:
-        txt = "Temperatura: " + value;
-        _activeClient->write(txt.c_str());
+        _activeClient->write("Temperatura: ");
+        _activeClient->write(String(value).c_str());
         break;
     }
+    _activeClient->write("\r\n");
 }
 
 // ###################### FUNKCJE POMOCNICZE #######################
@@ -352,8 +404,8 @@ bool TUIManager::_isAllDigit(const String &str)
         if (!isdigit(str.charAt(i)))
         {
             return false;
-        }
-    }
+        };
+    };
 
     return true;
 }

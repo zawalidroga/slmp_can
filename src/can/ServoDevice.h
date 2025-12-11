@@ -2,41 +2,44 @@
 #define SERVO_DEVICE_H
 
 #include <Arduino.h>
+#include <Preferences.h>
 
 class ServoDevice
 {
 private:
     int8_t _id;
     uint8_t _servoMode = 99;
-    int16_t _actualPosition;
-    int16_t _actualSpeed;
-    int16_t _actualCurrent;
-    int8_t _readErrorCode;
-    int8_t _actualTemperature;
+    int16_t _actualPosition = 0;
+    int16_t _actualSpeed = 0;
+    int16_t _actualCurrent = 0;
+    int8_t _readErrorCode = 0;
+    int8_t _actualTemperature = 0;
     int16_t _speed16 = (int16_t)speed;
 
 public:
     enum class RealParameter : uint8_t
     {
-        SERVO_ID,
-        SERVO_MODE,
-        POSITION,
-        SPEED,
-        CURRENT,
-        ERROR,
-        TEMPERATURE,
+        SERVO_ID = 0,
+        SERVO_MODE = 1,
+        POSITION = 2,
+        SPEED = 3,
+        CURRENT = 4,
+        ERROR = 5,
+        TEMPERATURE = 6,
+
         INVALID_PARAM
     };
 
     enum class ParameterServo : uint8_t
     {
-        CURRENT,
-        BRAKE_CURRENT,
-        SPEED,
-        POSITION,
-        ACCELERATION,
-        FACTOR_KP,
-        FACTOR_KD,
+        CURRENT = 0,
+        BRAKE_CURRENT = 1,
+        SPEED = 2,
+        POSITION = 3,
+        ACCELERATION = 4,
+        FACTOR_KP = 5,
+        FACTOR_KD = 6,
+
         INVALID_PARAM
     };
 
@@ -47,7 +50,7 @@ public:
     int16_t acceleration = 0; // wartości od 0 do 32767 co reprezentuje 0 do 32767 *10 elec RPM/s2
     int16_t factorKP = 0;
     int16_t factorKD = 0;
-    int16_t speed16 = (int16_t)speed;
+
     bool servoInPosition = true;
     bool isOn = false;
 
@@ -56,12 +59,19 @@ public:
     uint8_t getID();
     uint8_t getServoMode();
     int16_t getAllParameters(RealParameter parName);
+    int16_t getServoStatus();
     void setParameters(ParameterServo parName, uint32_t value);
+    void setServoMonitor(RealParameter parName, uint32_t value);
     void setServoMode(int8_t mode);
     void setZero();
 
+    void saveState(Preferences &prefs);
+    void loadState(Preferences &prefs);
+
     static RealParameter toRealParameter(int value);
     static ParameterServo toParameterServo(int value);
+
+    std::function<void()> onStateChanged;
 
     ServoDevice(int8_t ID)
     {

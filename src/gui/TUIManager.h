@@ -43,6 +43,7 @@ private:
 
     void _mainMenuHandler(const String &c);
     void _servoControlHandler(const String &c);
+    void _servoMonitorHandler();
 
 public:
     TUIManager(ServoControl &servoControl);
