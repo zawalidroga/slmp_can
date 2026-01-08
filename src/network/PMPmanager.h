@@ -15,12 +15,13 @@
 // Kody subkomend odczytu
 #define PMP_SUBCMD_READ_STATUS 0x00 // wywołanie ruchu z nastawą kierunek - JOG, pozycja - jazda na pozycje, natężęnie - jazda do natężęie
 
-// Kody błędów SLMP
+// Kody błędów PSMP
 #define PMP_ERR_NONE 0x00
 #define PMP_ERR_INVALID_CMD 0x01 // niepoprawna komenda lub subkomenda
 #define PMP_ERR_INVALID_ID 0x02  // niepoprawna id urządzenia
 #define PMP_ERR_INVALID_DATA 0x03
 #define PMP_ERR_OUT_OF_RANGE 0x04
+#define PSMP_ERR_INVALID_POSITIONING_MODE 0x05
 
 // Stałe nałówka
 #define HEADER_PMP 0x2137
@@ -42,11 +43,16 @@ private:
     void _deviceRead();
     void _deviceWrite();
 
+    uint16_t _buildReply(uint8_t *resPayloadPtr);
+
+    uint16_t _calculate_crc16(const uint8_t *data, size_t length);
+
 public:
     PMPmanager(ServoControl &sm);
     void frameHandler(uint8_t *data, size_t packetSize, IPAddress remoteIp, uint16_t remotePort);
 
     std::function<void(uint8_t *, size_t, IPAddress, uint16_t)> sendReply;
+    std::function<void(String msg)> onLog;
 };
 
 #endif

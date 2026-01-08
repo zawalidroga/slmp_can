@@ -16,10 +16,11 @@ void NetworkManager::begin()
     if (!ETH.begin(ETH_ADDR, ETH_POWER_PIN, ETH_MDC_PIN, ETH_MDIO_PIN, ETH_PHY_LAN8720, ETH_CLOCK_GPIO0_IN))
     {
         Serial.println("FATAL: Inicjalizacja sprzętu ETH nie powiodła się!");
+        return;
     };
 
-    IPAddress local_IP(10, 0, 52, 202);
-    IPAddress gateway(10, 0, 52, 1);
+    IPAddress local_IP(192, 168, 3, 200);
+    IPAddress gateway(192, 168, 3, 39);
     IPAddress subnet(255, 255, 255, 0);
     IPAddress primaryDNS(8, 8, 8, 8);
     IPAddress secondaryDNS(8, 8, 4, 4);
@@ -27,18 +28,28 @@ void NetworkManager::begin()
     if (!ETH.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
     {
         Serial.println("Błąd: nie udało się skonfigurować IP");
+        return;
     };
 
     Serial.println("Konfiguracja IP zakończona, uruchamiam serwery TCP/UDP...");
     TCPserver.start(5020);
     udp.start(5055);
+
+    _ethConnected = true;
 };
 
 void NetworkManager::ethEvent(WiFiEvent_t event)
 {
     switch (event)
     {
-
+    case SYSTEM_EVENT_ETH_START:
+        Serial.println("[ETH] Started!");
+        ETH.setHostname("polpakex");
+        break;
+    case SYSTEM_EVENT_ETH_CONNECTED:
+        Serial.println("[ETH] Connected!");
+        _ethConnected = true;
+        break;
     case SYSTEM_EVENT_ETH_GOT_IP:
         Serial.print("[ETH] IP obtained: ");
         Serial.println(ETH.localIP());
@@ -58,9 +69,15 @@ void NetworkManager::ethEvent(WiFiEvent_t event)
         break;
 
     default:
+        Serial.println("[ETH] coś nie tak ");
         break;
     }
 };
+
+bool NetworkManager::isConnected() const
+{
+    return _ethConnected;
+}
 
 AsyncUdpManager &NetworkManager::getUdpManager()
 {

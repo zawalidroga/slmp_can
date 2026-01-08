@@ -147,7 +147,7 @@ void ServoControl::parseCanRxFrame(const CanFrame &frame)
         if (i < 6 && !(i % 2))
         {
             param = ServoDevice::toRealParameter(i / 2 + 2);
-            value = (frame.data[i + 1] << 8) | frame.data[i];
+            value = (frame.data[i] << 8) | frame.data[i + 1];
             servo->setServoMonitor(param, value);
         }
         else if (i > 5)
@@ -156,7 +156,11 @@ void ServoControl::parseCanRxFrame(const CanFrame &frame)
             value = frame.data[i];
             servo->setServoMonitor(param, value);
         };
-    }
+    };
+
+    // Update statusów
+    servo->updateInPositionStatus();
+    servo->updateBusyStatus();
 };
 
 void ServoControl::setServo(int8_t id, bool save)
@@ -184,14 +188,6 @@ ServoDevice *ServoControl::getServo(int8_t id)
     if (it != servos.end())
         return &it->second; // find zwraca dwie wartości jako indeks oraz wartość wyszukiwaną
     return nullptr;
-};
-
-void ServoControl::parseSLMPFrameRx(int frame) {
-
-};
-
-void ServoControl::parseSLMPFrameTx(int frame) {
-
 };
 
 // ################# ZAPIS SERW DO PAMIĘCI NIEULOTNEJ ####################
@@ -285,6 +281,38 @@ void ServoControl::saveServoState(uint8_t id)
     };
 };
 
+bool ServoControl::deleteServo(uint8_t id)
+{
+    ServoDevice *servo = getServo(id);
+    if (servo == nullptr)
+    {
+        Serial.println("[Err][ServoControl] Błąd, nie ma takiego serwa");
+        return false;
+    };
+
+    String servoNamespace = "srv_" + String(id);
+    _prefs.begin(servoNamespace.c_str(), false);
+
+    if (_prefs.clear())
+    {
+
+        Serial.println("Serwo o ID " + String(id) + " usunięto pomyślnie.");
+    }
+    else
+    {
+        Serial.println("Nie udało się usunąć serwa o ID " + String(id));
+    };
+
+    _prefs.end();
+
+    if (servos.erase(id))
+    {
+        Serial.println("[Info][ServoControl] Usunięto serwo.");
+    }
+    _saveServoList();
+    return true;
+}
+
 // ################# FUNKCJE POMOCNICZE #####################
 
 String ServoControl::listServoIDs()
@@ -309,3 +337,13 @@ String ServoControl::listServoIDs()
     idList += ".\r\n";
     return idList;
 }
+
+std::vector<uint8_t> ServoControl::getServoIds()
+{
+    std::vector<uint8_t> ids;
+    for (auto const &[id, servo_device] : servos)
+    {
+        ids.push_back(id);
+    };
+    return ids;
+};

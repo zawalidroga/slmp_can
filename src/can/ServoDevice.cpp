@@ -24,8 +24,17 @@ uint8_t ServoDevice::getServoMode()
 {
     return _servoMode;
 };
+uint8_t ServoDevice::getPositioningMode()
+{
+    return _positioningMode;
+};
 
-int16_t ServoDevice::getAllParameters(RealParameter parName)
+void ServoDevice::setPositioningMode(uint8_t mode)
+{
+    _positioningMode = mode;
+}
+
+int16_t ServoDevice::getParameters(RealParameter parName)
 {
     switch (parName)
     {
@@ -54,12 +63,59 @@ int16_t ServoDevice::getAllParameters(RealParameter parName)
     return 0;
 };
 
+// ###################### STATUSY SERWA ##########################
+
 int16_t ServoDevice::getServoStatus()
 {
-    return 3;
+    return _status;
+};
+void ServoDevice::setStatus(ServoStatusFlags flags)
+{
+    _status |= static_cast<uint16_t>(flags);
+};
+void ServoDevice::clearStatus(ServoStatusFlags flags)
+{
+    _status &= ~static_cast<uint16_t>(flags);
+};
+bool ServoDevice::isStatusSet(ServoStatusFlags flags)
+{
+    return (_status & static_cast<uint16_t>(flags)) != 0;
 };
 
-void ServoDevice::setServoMonitor(RealParameter param, uint32_t value)
+void ServoDevice::updateInPositionStatus()
+{
+    if (abs((int)_targetPosition - (int)_actualPosition) <= _inPositionOffset)
+    {
+        if (!isStatusSet(ServoStatusFlags::IN_POSITION))
+        {
+            setStatus(ServoStatusFlags::IN_POSITION);
+            setStatus(ServoStatusFlags::POSITIONING_COMPLETED);
+            clearStatus(ServoStatusFlags::BUSY_POSITIONING);
+        }
+    }
+    else
+    {
+        clearStatus(ServoStatusFlags::IN_POSITION);
+        clearStatus(ServoStatusFlags::POSITIONING_COMPLETED);
+    }
+};
+
+void ServoDevice::updateBusyStatus()
+{
+    if (abs((int)_actualSpeed) > _busyOffset)
+    {
+        setStatus(ServoStatusFlags::BUSY);
+    }
+    else
+    {
+        setStatus(ServoStatusFlags::BUSY);
+    };
+};
+
+// ##############################################################
+
+// ##################### servo monitory i settery #######################
+void ServoDevice::setServoMonitor(RealParameter param, int16_t value)
 {
     switch (param)
     {
@@ -121,6 +177,24 @@ void ServoDevice::setParameters(ParameterServo parName, uint32_t value)
 };
 
 void ServoDevice::setZero() {};
+
+void ServoDevice::setPositionTarget(int32_t position)
+{
+    _targetPosition = position;
+    clearStatus(ServoStatusFlags::IN_POSITION);
+    clearStatus(ServoStatusFlags::POSITIONING_COMPLETED);
+    setStatus(ServoStatusFlags::BUSY_POSITIONING);
+};
+
+void ServoDevice::setInPositionOffset(uint16_t offset)
+{
+    _inPositionOffset = offset;
+};
+
+void ServoDevice::setBusyPositioningOffset(uint16_t offset)
+{
+    _busyOffset = offset;
+};
 
 // ######################### ZAPIS PARAMETRÓW ######################
 

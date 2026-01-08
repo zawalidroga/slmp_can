@@ -9,14 +9,41 @@ class ServoDevice
 private:
     int8_t _id;
     uint8_t _servoMode = 99;
+    uint8_t _positioningMode = 0;
     int16_t _actualPosition = 0;
     int16_t _actualSpeed = 0;
     int16_t _actualCurrent = 0;
     int8_t _readErrorCode = 0;
     int8_t _actualTemperature = 0;
     int16_t _speed16 = (int16_t)speed;
+    uint16_t _status;
+
+    uint32_t _targetPosition = 0;
+    uint16_t _inPositionOffset = 1000; // domyślna wartość
+    uint16_t _busyOffset = 1000;
 
 public:
+    enum class ServoStatusFlags : uint16_t
+    {
+        NONE = 0,
+        ENABLED = (1 << 0),
+        READY_ON = (1 << 1),
+        IN_POSITION = (1 << 2),
+        HPR_COMPLETED = (1 << 3),
+        HPR_REQUEST = (1 << 4),
+        POSITIONING_COMPLETED = (1 << 5),
+        BUSY = (1 << 6),             // od prędkości rzeczywistej
+        BUSY_POSITIONING = (1 << 7), // od intencji ruchu - zadania target position
+        EMPTY_2 = (1 << 8),
+        EMPTY_3 = (1 << 9),
+        EMPTY_4 = (1 << 10),
+        EMPTY_5 = (1 << 11),
+        EMPTY_6 = (1 << 12),
+        EMPTY_7 = (1 << 13),
+        ERROR = (1 << 14),
+        SERVO_ERR = (1 << 15)
+    };
+
     enum class RealParameter : uint8_t
     {
         SERVO_ID = 0,
@@ -58,12 +85,27 @@ public:
     void readPrivateServoState();
     uint8_t getID();
     uint8_t getServoMode();
-    int16_t getAllParameters(RealParameter parName);
+    uint8_t getPositioningMode();
+    int16_t getParameters(RealParameter parName);
+
     int16_t getServoStatus();
+    void setStatus(ServoStatusFlags flags);
+    void clearStatus(ServoStatusFlags flags);
+    bool isStatusSet(ServoStatusFlags flags);
+
     void setParameters(ParameterServo parName, uint32_t value);
-    void setServoMonitor(RealParameter parName, uint32_t value);
+    void setServoMonitor(RealParameter parName, int16_t value);
     void setServoMode(int8_t mode);
     void setZero();
+    void setPositioningMode(uint8_t mode);
+
+    void setPositionTarget(int32_t position);
+    void setInPositionOffset(uint16_t offset);
+    void setBusyPositioningOffset(uint16_t offset);
+
+    void updateInPositionStatus();
+    void updateBusyStatus();
+    void updateBusyPositioningStatus();
 
     void saveState(Preferences &prefs);
     void loadState(Preferences &prefs);
@@ -73,10 +115,8 @@ public:
 
     std::function<void()> onStateChanged;
 
-    ServoDevice(int8_t ID)
-    {
-        _id = ID;
-    };
+    ServoDevice(int8_t ID) : _id(ID), _status(0) {
+                             };
 };
 
 #endif

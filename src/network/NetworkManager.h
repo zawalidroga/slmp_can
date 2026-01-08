@@ -27,6 +27,7 @@ public:
 
     void begin();
     void loop();
+    bool isConnected() const;
 
     AsyncUdpManager &getUdpManager();
     AsyncTcpServer &getTcpServer();

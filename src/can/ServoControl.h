@@ -39,6 +39,7 @@ public:
     void begin();
     void setServo(int8_t id, bool save = true);
     String listServoIDs();
+    std::vector<uint8_t> getServoIds();
     ServoDevice *getServo(int8_t id);
     void parseCanRxFrame(const CanFrame &frame);
     void parseCanTxFrame(CanFrame &frame, int id);
@@ -46,6 +47,7 @@ public:
     void parseSLMPFrameTx(int frame);
 
     void saveServoState(uint8_t id);
+    bool deleteServo(uint8_t id);
 };
 
 #endif

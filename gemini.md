@@ -2,9 +2,38 @@
 
 Ten plik służy jako notatnik do śledzenia kontekstu i kluczowych punktów naszych rozmów.
 
+## Zasady współpracy
+
+Uczę się programować, więc nie zmieniaj kodu bez mojej wyraźnej prośby. Twoja rola polega na pomocy, podpowiadaniu i wsparciu przy architekturze.
+
 ## 2025-12-08
 
 *   Zainicjowano pomysł prowadzenia tego pliku (`gemini.md`) w celu utrzymania ciągłości rozmów na temat projektu.
+
+---
+
+## Sesja z 2025-12-12
+
+### Co zrobiliśmy:
+
+1.  **Ustalenie zasad współpracy:** Potwierdziliśmy, że moja rola to bycie asystentem i mentorem, a nie bezpośrednie modyfikowanie kodu bez Twojej prośby. Zostało to zapisane w tym pliku.
+2.  **Analiza struktury projektu:** Zapoznałem się ze strukturą plików projektu i dodałem ją do tego dokumentu w celu łatwiejszego odniesienia.
+3.  **Implementacja flag statusu (`ServoStatusFlags`):**
+    *   Wyjaśniliśmy, jak efektywnie zarządzać wieloma stanami (flagami) za pomocą jednego integera i operacji bitowych (`|`, `&`, `<<`, `~`).
+    *   Zaprojektowaliśmy, jak zintegrować flagi statusu z klasą `ServoDevice`, włączając w to dodanie prywatnego pola `_status` oraz publicznych metod `setStatus`, `clearStatus` i `isStatusSet`.
+4.  **Diagnoza błędu `signed`/`unsigned`:**
+    *   Zidentyfikowaliśmy przyczynę błędu, przez który ujemne wartości prądu (`current`) z ramki CAN były błędnie interpretowane jako duże wartości dodatnie.
+    *   Problem leży w funkcji `parseCanRxFrame` (`ServoControl.cpp`) oraz w sygnaturze funkcji `setServoMonitor` (`ServoDevice.h`), która wymuszała traktowanie wartości jako `unsigned`.
+
+### Plan na następną sesję (jutro):
+
+1.  **Naprawa błędu `signed`/`unsigned`:**
+    *   **Krok 1:** Zmiana sygnatury metody `setServoMonitor` w `ServoDevice.h` z `void setServoMonitor(RealParameter parName, uint32_t value);` na `void setServoMonitor(RealParameter parName, int16_t value);`.
+    *   **Krok 2:** Poprawa logiki w `parseCanRxFrame` w `ServoControl.cpp`, aby poprawnie składać bajty z ramki CAN i rzutować je na `int16_t` przed przekazaniem do `setServoMonitor`.
+2.  **Dokończenie implementacji `ServoStatusFlags`:** Wprowadzenie zmian w kodzie, które omówiliśmy dzisiaj.
+3.  **Kontynuacja głównych zadań (TODO):**
+    *   Stworzyć i zintegrować klasę `SettingsManager` do zarządzania globalną konfiguracją.
+    *   Rozwinąć protokół `PMP`.
 
 ---
 
@@ -16,48 +45,118 @@ W tej sesji zdiagnozowaliśmy i naprawiliśmy szereg błędów, które uniemożl
 
 1.  **Problem z Watchdogiem (Ciągłe restarty):**
     *   **Rozwiązanie:** Dodano `vTaskDelay` do pętli w `_canSendTask`, aby zapobiec blokowaniu procesora.
+... (reszta pliku bez zmian)
+---
+## Struktura plików projektu:
 
-2.  **Problem z siecią (Brak pingu):**
-    *   **Rozwiązanie:** Poprawiono kolejność `ETH.begin()` i `ETH.config()` oraz przeniesiono start serwerów TCP/UDP z eventu do głównej funkcji `begin()`.
+```
+.
+├── gemini.md
+├── include
+│   └── README
+├── lib
+│   └── README
+├── platformio.ini
+├── src
+│   ├── app
+│   │   ├── app.cpp
+│   │   └── app.h
+│   ├── can
+│   │   ├── CanManager.cpp
+│   │   ├── CanManager.h
+│   │   ├── ServoControl.cpp
+│   │   ├── ServoControl.h
+│   │   ├── ServoDevice.cpp
+│   │   └── ServoDevice.h
+│   ├── gui
+│   │   ├── TUIManager.cpp
+│   │   └── TUIManager.h
+│   ├── main.cpp
+│   └── network
+│       ├── AsyncTCPServer.cpp
+│       ├── AsyncTCPServer.h
+│       ├── AsyncUDPManager.cpp
+│       ├── AsyncUDPManager.h
+│       ├── CommandParser.cpp
+│       ├── CommandParser.h
+│       ├── NetworkManager.cpp
+│       ├── NetworkManager.h
+│       ├── PMPmanager.cpp
+│       └── PMPmanager.h
+└── test
+    └── README
+```
 
-3.  **Problem z połączeniem TCP (`Connection refused`):**
-    *   **Rozwiązanie:** Poprawiono tworzenie kopii managerów sieci w `main.cpp` na użycie referencji (`&`).
+---
+## Lista zadań (TODO)
 
-4.  **Problem z crashem po połączeniu TCP (`LoadProhibited`):**
-    *   **Rozwiązanie:** Ustawiono wskaźnik `_activeClient` w `TUIManager` na początku funkcji `onNewClientConnect`.
+*   ~~Zaimplementować sumę kontrolną (CRC) w protokole PMP dla większej niezawodności.~~ (Wykonane)
 
-5.  **Problem z echem zwrotnym komend:**
-    *   **Rozwiązanie:** Zakomentowano testową linię `c->write(...)` w `AsyncTCPServer.cpp`.
+---
+## Sesja z 2025-12-15
 
-6.  **Problem z uszkodzeniem pamięci (crashe, błędy wyświetlania):**
-    *   **Przyczyna:** Użycie obiektów `String` i konkatenacji (`+`) w pętlach, co prowadziło do fragmentacji pamięci.
-    *   **Rozwiązanie:** Zrefaktoryzowano kod, aby unikać tworzenia obiektów `String` w pętlach.
+### Co zrobiliśmy:
 
-7.  **Problemy z zapisem/odczytem z pamięci `Preferences`:**
-    *   **Błąd `NOT_INITIALIZED`:** Wywoływanie `Preferences` z konstruktora globalnego obiektu. Rozwiązane przez przeniesienie logiki do metody `begin()` wywoływanej z `setup()`.
-    *   **Błąd `NOT_FOUND`:** Próba otwarcia nieistniejącej przestrzeni nazw/klucza w trybie "tylko do odczytu". Rozwiązane przez zmianę trybu otwarcia na "zapis/odczyt" (`false`) lub użycie `isKey()` do sprawdzenia istnienia klucza.
+1.  **Implementacja sumy kontrolnej (CRC):**
+    *   Zaprojektowaliśmy i wdrożyliśmy mechanizm sumy kontrolnej CRC16 dla protokołu PMP, aby zapewnić integralność przesyłanych danych.
+    *   Poprawiliśmy kilka krytycznych błędów związanych z dostępem do pamięci (`StoreProhibited`), które pojawiały się podczas implementacji.
 
-### Aktualny status:
+2.  **Ujednolicenie odpowiedzi PMP:**
+    *   Zdecydowaliśmy, że odpowiedź na żądanie odczytu statusu (`PMP_SUBCMD_READ_STATUS`) będzie zawsze zawierać dane o wszystkich serwach, co upraszcza protokół.
 
-Aplikacja jest w pełni stabilna. Wszystkie kluczowe moduły (sieć, TUI, CAN, zapis/odczyt konfiguracji serw) działają poprawnie.
+3.  **Implementacja logiki statusów serw:**
+    *   Zaprojektowaliśmy i wdrożyliśmy logikę dla flag statusu, w tym `IN_POSITION`.
+    *   Rozróżniliśmy status "fizycznie zajęty" (`BUSY`, oparty na prędkości) od "logicznie zajęty" (`BUSY_POSITIONING`, oparty na stanie polecenia).
+
+4.  **Stworzenie monitora diagnostycznego UDP:**
+    *   Zaimplementowaliśmy mechanizm logowania pakietów UDP (przychodzących i wychodzących) i ich wyświetlania w TUI, co ułatwia diagnostykę.
+
+### Plan na następne sesje (nasze TODO):
+
+1.  **Aktywne skanowanie serw na magistrali CAN.**
+
+2.  **Stworzenie klasy `SettingsManager`** do centralnego zarządzania konfiguracją.
+
+3.  **Dalszy rozwój protokołu PMP i TUI** (dodanie brakujących komend i ekranów).
+
+
 
 ---
 
-### Ustalenia architektoniczne i wyjaśnienia:
+## Sesja z 2025-12-15 (Diagnostyka OTA)
 
-*   **Uniwersalny mechanizm zapisu (Wzorzec Obserwator):**
-    *   Ustaliliśmy, że najlepszym sposobem na "uniwersalny" zapis jest dodanie callbacka `onStateChanged` do `ServoDevice`. Dzięki temu obiekt serwa sam "informuje" o zmianie swojego stanu, co automatycznie uruchamia procedurę zapisu, niezależnie od tego, która część programu dokonała modyfikacji.
 
-*   **Zarządzanie konfiguracją urządzenia:**
-    *   Ustaliliśmy, że do zarządzania globalnymi ustawieniami (IP, porty) najlepiej będzie stworzyć dedykowaną klasę `SettingsManager` działającą jako Singleton.
 
-*   **Pytania dot. C++:**
-    *   **Wskaźniki:** Wyjaśniliśmy różnicę między deklaracją wskaźnika (`TYP *nazwa`) a zmiennej (`TYP nazwa`), a także działanie operatorów `&` (pobranie adresu) i `*` (dereferencja - pobranie wartości spod adresu). Przeanalizowaliśmy różnicę między arytmetyką wskaźników (`pointer + 1`) a arytmetyką wartości (`*pointer + 1`).
-    *   **Endianness:** Wyjaśniliśmy, dlaczego istnieje Little-Endian (ułatwienia dla procesora w operacjach arytmetycznych) i Big-Endian (standard sieciowy, bardziej czytelny dla człowieka).
-    *   **Błąd `jump to case label`:** Wyjaśniliśmy, że błąd ten wynika z deklaracji zmiennej wewnątrz `switch`, ale poza blokiem `{}` konkretnego `case`.
-    *   **Iteracja po `enum`:** Wyjaśniliśmy, że nie można iterować bezpośrednio i pokazaliśmy wzorzec z dodaniem elementu `_COUNT` oraz konieczność użycia `static_cast` dla `enum class`.
+### Co zrobiliśmy:
 
-### Zadania do wykonania (TODO):
 
-*   Stworzyć i zintegrować klasę `SettingsManager` do zarządzania globalną konfiguracją urządzenia.
-*   Rozwinąć protokół `PMP` w oparciu o zdobyte doświadczenia.
+
+Dzisiejsza sesja była w całości poświęcona próbie implementacji i debugowaniu aktualizacji Over-The-Air (OTA). Proces był złożony i iteracyjny:
+
+
+
+1.  **Pierwsza próba (`ArduinoOTA`):** Zaimplementowaliśmy standardową bibliotekę `ArduinoOTA`. Problem polegał na tym, że urządzenie nie było wykrywane w sieci.
+
+2.  **Debugowanie połączenia sieciowego:** Zdiagnozowaliśmy, że usługa OTA startowała, zanim interfejs Ethernet był gotowy. Przeszliśmy przez kilka iteracji, próbując naprawić ten problem:
+
+    *   Najpierw przez system zdarzeń (`ethEvent`), który okazał się nie działać w tej konfiguracji.
+
+    *   Następnie przez aktywne sprawdzanie statusu linku (`ETH.linkUp()`), co **zakończyło się sukcesem** – urządzenie zaczęło poprawnie łączyć się z siecią.
+
+3.  **Debugowanie `ArduinoOTA`:** Mimo działającej sieci, aktualizacja nadal się nie udawała z powodu błędu "No response from the ESP".
+
+    *   Naprawiliśmy problem z brakiem hasła autoryzacyjnego w `platformio.ini`.
+
+    *   Mimo to, komunikacja OTA oparta na UDP wciąż zawodziła, nawet po wykluczeniu problemów z firewallem (potwierdzone działającym połączeniem TCP przez `ncat`).
+
+4.  **Zmiana strategii na `HTTPUpdate`:** Z powodu uporczywych problemów z `ArduinoOTA`, zdecydowaliśmy się na zmianę podejścia. Zaprojektowaliśmy test z użyciem aktualizacji przez HTTP, gdzie to ESP32 (klient) pobiera plik `firmware.bin` z serwera HTTP uruchomionego na komputerze PC.
+
+
+
+### Plan na następne sesje:
+
+
+
+1.  **Analiza wyników testu `HTTPUpdate`:** Sprawdzenie, czy aktualizacja przez HTTP powiodła się.
+
+2.  **Integracja docelowego mechanizmu OTA:** Jeśli test HTTP się powiedzie, zintegrujemy go na stałe z aplikacją jako główną metodę aktualizacji oprogramowania.
