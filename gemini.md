@@ -114,10 +114,11 @@ W tej sesji zdiagnozowaliśmy i naprawiliśmy szereg błędów, które uniemożl
 ### Plan na następne sesje (nasze TODO):
 
 1.  **Aktywne skanowanie serw na magistrali CAN.**
-
 2.  **Stworzenie klasy `SettingsManager`** do centralnego zarządzania konfiguracją.
-
 3.  **Dalszy rozwój protokołu PMP i TUI** (dodanie brakujących komend i ekranów).
+4.  **Sprawdzanie połączenia z serwami:** Implementacja mechanizmu, który weryfikuje, czy serwo odpowiada. Jeśli serwo jest offline, należy wstrzymać wysyłanie do niego ramek i oznaczyć jego status jako "offline".
+5.  **Analiza wyników testu `HTTPUpdate` (OTA):** Sprawdzenie, czy aktualizacja przez HTTP powiodła się.
+6.  **Integracja docelowego mechanizmu OTA:** Jeśli test `HTTPUpdate` się powiedzie, zintegrowanie go na stałe z aplikacją.
 
 
 
@@ -150,13 +151,3 @@ Dzisiejsza sesja była w całości poświęcona próbie implementacji i debugowa
     *   Mimo to, komunikacja OTA oparta na UDP wciąż zawodziła, nawet po wykluczeniu problemów z firewallem (potwierdzone działającym połączeniem TCP przez `ncat`).
 
 4.  **Zmiana strategii na `HTTPUpdate`:** Z powodu uporczywych problemów z `ArduinoOTA`, zdecydowaliśmy się na zmianę podejścia. Zaprojektowaliśmy test z użyciem aktualizacji przez HTTP, gdzie to ESP32 (klient) pobiera plik `firmware.bin` z serwera HTTP uruchomionego na komputerze PC.
-
-
-
-### Plan na następne sesje:
-
-
-
-1.  **Analiza wyników testu `HTTPUpdate`:** Sprawdzenie, czy aktualizacja przez HTTP powiodła się.
-
-2.  **Integracja docelowego mechanizmu OTA:** Jeśli test HTTP się powiedzie, zintegrujemy go na stałe z aplikacją jako główną metodę aktualizacji oprogramowania.

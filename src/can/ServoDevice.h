@@ -17,6 +17,7 @@ private:
     int8_t _actualTemperature = 0;
     int16_t _speed16 = (int16_t)speed;
     uint16_t _status;
+    unsigned long _lastSeen = 0;
 
     uint32_t _targetPosition = 0;
     uint16_t _inPositionOffset = 1000; // domyślna wartość
@@ -39,7 +40,7 @@ public:
         EMPTY_4 = (1 << 10),
         EMPTY_5 = (1 << 11),
         EMPTY_6 = (1 << 12),
-        EMPTY_7 = (1 << 13),
+        ONLINE = (1 << 13),
         ERROR = (1 << 14),
         SERVO_ERR = (1 << 15)
     };
@@ -106,6 +107,9 @@ public:
     void updateInPositionStatus();
     void updateBusyStatus();
     void updateBusyPositioningStatus();
+
+    void updateLastSeen();
+    unsigned long getLastSeen();
 
     void saveState(Preferences &prefs);
     void loadState(Preferences &prefs);

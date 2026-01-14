@@ -48,6 +48,8 @@ public:
 
     void saveServoState(uint8_t id);
     bool deleteServo(uint8_t id);
+
+    void checkServoConnection();
 };
 
 #endif

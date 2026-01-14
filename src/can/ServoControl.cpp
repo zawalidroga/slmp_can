@@ -311,6 +311,12 @@ bool ServoControl::deleteServo(uint8_t id)
     }
     _saveServoList();
     return true;
+};
+
+// ################# SPRAWDZANIE POŁĄCZNIEA SERWA ##################
+
+void ServoControl::checkServoConnection()
+{
 }
 
 // ################# FUNKCJE POMOCNICZE #####################

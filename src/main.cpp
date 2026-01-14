@@ -17,6 +17,8 @@ AsyncTcpServer &tcpManager = networkManger.getTcpServer();
 CommandManager commManager(servos);
 PMPmanager slmpManager(servos);
 
+void servoMonitorTask() {};
+
 void setup()
 {
     Serial.begin(115200);
