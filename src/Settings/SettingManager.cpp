@@ -15,15 +15,19 @@ void SettingMenager::begin()
         Serial.println("[WARN][Settigs] Nie udało się otworzyc Preferences do zapisu.");
         return;
     }
-    else
-    {
-        String ipStr = _preferences.getString("ip_address", _ip.toString());
-        _ip.fromString(ipStr);
-        _portTCP = _preferences.getUShort("port_tcp", _portTCP);
-        _portUDP = _preferences.getUShort("port_udp", _portUDP);
 
-        Serial.println("[INFO][Settings] Ustawienia wczytane");
-    };
+    if (!_preferences.isKey("ip_address"))
+    {
+        Serial.println("[INFO][Settings] Brak konfiguracji, zapisuję domyślną.");
+        save();
+    }
+
+    String ipStr = _preferences.getString("ip_address", _ip.toString());
+    _ip.fromString(ipStr);
+    _portTCP = _preferences.getUShort("port_tcp", _portTCP);
+    _portUDP = _preferences.getUShort("port_udp", _portUDP);
+
+    Serial.println("[INFO][Settings] Ustawienia wczytane");
 };
 
 void SettingMenager::save()

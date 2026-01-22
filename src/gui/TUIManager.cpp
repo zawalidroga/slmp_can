@@ -190,6 +190,12 @@ void TUIManager::handleCommand(const String &command, ServoControl &servoControl
         };
     }
     break;
+    case WindowState::TESTO:
+     if (_isAllDigit(command))
+        {
+            _servoControl.getServo(_activeServo) -> setServoMode(command.toInt());
+            _currentState = WindowState::SERVO_CONTROL;
+        }
     default:
         break;
     }
@@ -376,6 +382,11 @@ void TUIManager::_servoControlHandler(const String &c)
     else if (c == "4")
     {
         _servoControl.getServo(_activeServo)->setServoMode(99); //
+    }
+    else if (c == "TEST"){
+
+        _activeClient->write("Wpisz tryb serwa: \r\n");
+        _currentState = WindowState::TESTO;
     }
 
     else if (c == "GO")

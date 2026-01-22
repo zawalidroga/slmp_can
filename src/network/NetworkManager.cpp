@@ -19,8 +19,8 @@ void NetworkManager::begin()
         return;
     };
 
-    IPAddress local_IP(192, 168, 3, 200);
-    IPAddress gateway(192, 168, 3, 39);
+    IPAddress local_IP(192, 168, 3, 205);
+    IPAddress gateway(192, 168, 3, 213);
     IPAddress subnet(255, 255, 255, 0);
     IPAddress primaryDNS(8, 8, 8, 8);
     IPAddress secondaryDNS(8, 8, 4, 4);
@@ -33,24 +33,26 @@ void NetworkManager::begin()
 
     Serial.println("Konfiguracja IP zakończona, uruchamiam serwery TCP/UDP...");
     TCPserver.start(5020);
-    udp.start(5055);
+    // udp.start(5055);
 
-    _ethConnected = true;
+    // _ethConnected = true;
 };
 
 void NetworkManager::ethEvent(WiFiEvent_t event)
 {
+    Serial.print("ten ivent: ");
+    Serial.println(event);
     switch (event)
     {
-    case SYSTEM_EVENT_ETH_START:
+    case ARDUINO_EVENT_ETH_START:
         Serial.println("[ETH] Started!");
         ETH.setHostname("polpakex");
         break;
-    case SYSTEM_EVENT_ETH_CONNECTED:
+    case ARDUINO_EVENT_ETH_CONNECTED:
         Serial.println("[ETH] Connected!");
         _ethConnected = true;
         break;
-    case SYSTEM_EVENT_ETH_GOT_IP:
+    case ARDUINO_EVENT_ETH_GOT_IP:
         Serial.print("[ETH] IP obtained: ");
         Serial.println(ETH.localIP());
         _ethConnected = true;
@@ -60,11 +62,11 @@ void NetworkManager::ethEvent(WiFiEvent_t event)
         NetworkManager::getInstance().udp.start(5005);
         break;
 
-    case SYSTEM_EVENT_ETH_DISCONNECTED:
+    case ARDUINO_EVENT_ETH_DISCONNECTED:
         Serial.println("[ETH] Disconnected");
         _ethConnected = false;
         break;
-    case SYSTEM_EVENT_ETH_STOP:
+    case ARDUINO_EVENT_ETH_STOP:
         Serial.println("[ETH] Stopped.");
         break;
 

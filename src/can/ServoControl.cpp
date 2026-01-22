@@ -135,7 +135,7 @@ void ServoControl::parseCanRxFrame(const CanFrame &frame)
 
     const int id = frame.identifier & 0xFF;
     ServoDevice *servo = getServo(id);
-
+    Serial.println(id);
     if (servo == nullptr)
     {
         return;

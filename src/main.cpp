@@ -36,7 +36,7 @@ void setup()
     Serial.println(ETH.localIP());
 
     servos.begin();
-    SettingMenager::getInstance().begin();
+    //SettingMenager::getInstance().begin();
     slmpManager.onLog = [](String msg)
     {
         commManager.getTuiManager().printNetworkMonitor(msg);

@@ -22,6 +22,7 @@ enum class WindowState
     ADD_SERWO,
     DELETE_SERVO,
     NETWORK_MONITOR,
+    TESTO,
 
 };
 
