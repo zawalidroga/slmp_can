@@ -228,6 +228,17 @@ void ServoDevice::loadState(Preferences &prefs)
     Serial.printf("[NVS] Wczytano stan dla serwa ID: %d\n", _id);
 };
 
+// ######################### IS SERVO LIVE CHECK ########################
+void ServoDevice::updateLastSeen()
+{
+    _lastSeen = millis();
+};
+
+unsigned long ServoDevice::getLastSeen()
+{
+    return _lastSeen;
+}
+
 // ######################## FUNKCJE POMOCNICZE ########################
 
 ServoDevice::RealParameter ServoDevice::toRealParameter(int value)

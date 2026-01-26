@@ -9,6 +9,8 @@
 #include "./gui/TUIManager.h"
 #include "./Settings/SettingManager.h"
 
+#define SERVO_CONNECTION_CKECK_INTERVAL 3000 // 3s
+
 NetworkManager &networkManger = NetworkManager::getInstance();
 CanManager canManager;
 ServoControl servos(canManager);
@@ -17,11 +19,14 @@ AsyncTcpServer &tcpManager = networkManger.getTcpServer();
 CommandManager commManager(servos);
 PMPmanager slmpManager(servos);
 
+unsigned long lastServoConnectionCheck = 0;
+
 void servoMonitorTask() {};
 
 void setup()
 {
     Serial.begin(115200);
+    SettingMenager::getInstance().begin();
     canManager.begin();
     networkManger.begin();
 
@@ -36,7 +41,7 @@ void setup()
     Serial.println(ETH.localIP());
 
     servos.begin();
-    //SettingMenager::getInstance().begin();
+
     slmpManager.onLog = [](String msg)
     {
         commManager.getTuiManager().printNetworkMonitor(msg);
@@ -100,4 +105,10 @@ void loop()
             commManager.getTuiManager().printServoMonitor();
         };
     };
+
+    if (millis() - lastServoConnectionCheck > SERVO_CONNECTION_CKECK_INTERVAL)
+    {
+        lastServoConnectionCheck = millis();
+        servos.checkServoConnection();
+    }
 };

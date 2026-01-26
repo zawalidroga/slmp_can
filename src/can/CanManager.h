@@ -19,7 +19,7 @@ public:
     std::function<void(const CanFrame &)> onReadFrame; // callback - do funckji onFrame przypisuje odpowiednią funkcje która w odpowiedni sposób obrobi ramkę rozkładając ją na potrzebne dane
     std::function<void(CanFrame &, const int)> onWriteFrame;
     std::function<int()> deviceNo;
-    std::function<std::vector<uint8_t>()> getServosIDs;
+    std::function<std::vector<uint8_t>()> getOnlineServosIDs;
 
 private:
     twai_filter_config_t _fConfig;

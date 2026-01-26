@@ -1,6 +1,8 @@
 #ifndef SERVO_CONTROL_H
 #define SERVO_CONTROL_H
 
+#define SERVO_TIMEOUT_MS 3000 // 3 sekundy
+
 #include <Arduino.h>
 #include <map>
 #include <Preferences.h>
@@ -40,6 +42,7 @@ public:
     void setServo(int8_t id, bool save = true);
     String listServoIDs();
     std::vector<uint8_t> getServoIds();
+    std::vector<uint8_t> getOnlineServoIds();
     ServoDevice *getServo(int8_t id);
     void parseCanRxFrame(const CanFrame &frame);
     void parseCanTxFrame(CanFrame &frame, int id);

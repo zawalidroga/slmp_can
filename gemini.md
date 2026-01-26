@@ -88,9 +88,47 @@ W tej sesji zdiagnozowaliśmy i naprawiliśmy szereg błędów, które uniemożl
 ```
 
 ---
-## Lista zadań (TODO)
+
+## Lista zadań (TODO) - Stara
 
 *   ~~Zaimplementować sumę kontrolną (CRC) w protokole PMP dla większej niezawodności.~~ (Wykonane)
+*   ~~Aktywne skanowanie serw na magistrali CAN.~~ (Pominięte na rzecz sprawdzania online)
+*   ~~Stworzenie klasy `SettingsManager`~~ (Istnieje, do ewentualnej rozbudowy)
+*   ~~Dalszy rozwój protokołu PMP i TUI~~ (Zastąpione nowym planem GUI)
+*   ~~Sprawdzanie połączenia z serwami~~ (Wykonane)
+*   ~~Analiza i integracja OTA~~ (Do zrobienia w przyszłości)
+
+---
+
+## Nowy plan i lista zadań (TODO) - Styczeń 2026
+
+Naszym nowym celem jest stworzenie aplikacji desktopowej/terminalowej (`ServoSetter GUI`) do parametryzacji serw, która będzie komunikować się z ESP32 przez TCP z użyciem komunikatów JSON.
+
+### Zadania po stronie ESP32
+
+1.  **Integracja biblioteki `ArduinoJson`**: Dodać bibliotekę do `platformio.ini`.
+2.  **Rozbudowa `CommandParser`**:
+    *   Dodać logikę w `dataParser`, która rozpoznaje, czy przychodzący string to JSON (np. przez sprawdzenie, czy zaczyna się od `{`).
+    *   Jeśli to JSON, przekazać go do nowej funkcji, np. `parseJsonCommand()`.
+    *   Jeśli nie, przekazać go do `TUIManager` tak jak dotychczas.
+3.  **Implementacja `parseJsonCommand`**: Stworzyć logikę, która parsuje JSON i na podstawie pola `command` wywołuje odpowiednie akcje w `ServoControl` (np. `setParameters`, `getServo`).
+4.  **Implementacja odpowiedzi JSON**: Stworzyć funkcje, które budują odpowiedzi w formacie JSON (np. status `ok`/`error` lub pełne dane serwa) i odsyłają je do klienta TCP.
+5.  **Implementacja mechanizmu monitoringu**: Dodać logikę do obsługi komend `start_monitoring` i `stop_monitoring`, która będzie cyklicznie wysyłać dane o stanie serw do klienta, który o to poprosił.
+
+### Zadania po stronie PC (Aplikacja `ServoSetter GUI` w Pythonie)
+
+1.  **Etap 1: Rdzeń komunikacyjny (Python)**
+    *   Stworzyć klasę/moduł do obsługi połączenia TCP (nawiązywanie, zrywanie, wysyłanie, odbieranie danych).
+    *   Stworzyć funkcje do budowania stringów JSON dla poszczególnych komend (`set_speed`, `go_to_pos` itd.).
+    *   Implementacja wątku sieciowego do asynchronicznego odbierania danych.
+2.  **Etap 2: Struktura interfejsu (Python TUI)**
+    *   Zainicjować projekt z biblioteką `curses` (lub `textual`).
+    *   Stworzyć główny layout aplikacji (np. okno menu, okno statusu, okno główne).
+    *   Implementacja nawigacji po górnym menu.
+3.  **Etap 3: Integracja i logika UI (Python)**
+    *   Połączyć warstwę komunikacji z interfejsem: dane odebrane z ESP32 powinny być wyświetlane w odpowiednich oknach.
+    *   Zaimplementować obsługę akcji użytkownika (np. edycja pola z wartością parametru, kliknięcie przycisku "Wyślij").
+    *   Zbudować widoki dla parametryzacji i monitoringu.
 
 ---
 ## Sesja z 2025-12-15

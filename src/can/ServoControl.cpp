@@ -10,14 +10,9 @@ ServoControl::ServoControl(CanManager &can)
     { parseCanTxFrame(frame, id); }; // przekazanie ramki
     can.deviceNo = [this]()
     { return servos.size(); }; // przekazanie liczby serw
-    can.getServosIDs = [this]()
+    can.getOnlineServosIDs = [this]()
     {
-        std::vector<uint8_t> ids;
-        for (auto const &[id, servo] : servos)
-        {
-            ids.push_back(id);
-        };
-        return ids;
+        return this->getOnlineServoIds();
     };
 };
 
@@ -36,6 +31,7 @@ void ServoControl::parseCanTxFrame(CanFrame &frame, int id)
         Serial.println("[ServoControl] Brak serwa o podanym ID");
         return;
     };
+
     const int8_t mode = servo->getServoMode();
     int16_t speed16 = (int16_t)servo->speed;
 
@@ -140,6 +136,10 @@ void ServoControl::parseCanRxFrame(const CanFrame &frame)
     {
         return;
     };
+
+    // Sprawdzanie życia serwa
+    servo->updateLastSeen();
+
     int value = 0;
     for (int i = 0; i < 7; i++)
     {
@@ -317,6 +317,22 @@ bool ServoControl::deleteServo(uint8_t id)
 
 void ServoControl::checkServoConnection()
 {
+    unsigned long currentTime = millis();
+    for (auto const &[id, servo_ref] : servos)
+    {
+        ServoDevice *servo = getServo(id);
+        if (servo == nullptr)
+            continue;
+
+        if (currentTime - servo->getLastSeen() > SERVO_TIMEOUT_MS)
+        {
+            servo->clearStatus(ServoDevice::ServoStatusFlags::ONLINE);
+        }
+        else
+        {
+            servo->setStatus(ServoDevice::ServoStatusFlags::ONLINE);
+        };
+    }
 }
 
 // ################# FUNKCJE POMOCNICZE #####################
@@ -350,6 +366,20 @@ std::vector<uint8_t> ServoControl::getServoIds()
     for (auto const &[id, servo_device] : servos)
     {
         ids.push_back(id);
+    };
+    return ids;
+};
+
+std::vector<uint8_t> ServoControl::getOnlineServoIds()
+{
+    std::vector<uint8_t> ids;
+    for (auto const &[id, servo_device] : servos)
+    {
+        if (getServo(id)->isStatusSet(ServoDevice::ServoStatusFlags::ONLINE))
+        {
+
+            ids.push_back(id);
+        }
     };
     return ids;
 };

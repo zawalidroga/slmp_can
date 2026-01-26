@@ -191,9 +191,9 @@ void TUIManager::handleCommand(const String &command, ServoControl &servoControl
     }
     break;
     case WindowState::TESTO:
-     if (_isAllDigit(command))
+        if (_isAllDigit(command))
         {
-            _servoControl.getServo(_activeServo) -> setServoMode(command.toInt());
+            _servoControl.getServo(_activeServo)->setServoMode(command.toInt());
             _currentState = WindowState::SERVO_CONTROL;
         }
     default:
@@ -383,7 +383,8 @@ void TUIManager::_servoControlHandler(const String &c)
     {
         _servoControl.getServo(_activeServo)->setServoMode(99); //
     }
-    else if (c == "TEST"){
+    else if (c == "TEST")
+    {
 
         _activeClient->write("Wpisz tryb serwa: \r\n");
         _currentState = WindowState::TESTO;
@@ -502,6 +503,15 @@ void TUIManager::printServoMonitor()
         _activeClient->write("x");
     };
     _activeClient->write(" | ");
+    _activeClient->write("Online: ");
+    if (servo->isStatusSet(ServoDevice::ServoStatusFlags::ONLINE))
+    {
+        _activeClient->write("o");
+    }
+    else
+    {
+        _activeClient->write("x");
+    }
     _activeClient->write("In Position: ");
     if (servo->isStatusSet(ServoDevice::ServoStatusFlags::IN_POSITION))
     {
