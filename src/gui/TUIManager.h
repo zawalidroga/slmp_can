@@ -1,7 +1,7 @@
 #ifndef TUI_MANAGER_H
 #define TUI_MANAGER_H
 
-#define STATUS_UPDATE_INTERVAL 1000 // ms
+#define STATUS_UPDATE_INTERVAL 5000 // ms
 
 #include <AsyncTCP.h>
 #include "../can/ServoControl.h"

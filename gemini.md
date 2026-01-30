@@ -102,33 +102,46 @@ W tej sesji zdiagnozowaliśmy i naprawiliśmy szereg błędów, które uniemożl
 
 ## Nowy plan i lista zadań (TODO) - Styczeń 2026
 
-Naszym nowym celem jest stworzenie aplikacji desktopowej/terminalowej (`ServoSetter GUI`) do parametryzacji serw, która będzie komunikować się z ESP32 przez TCP z użyciem komunikatów JSON.
+Naszym nowym celem jest stworzenie aplikacji desktopowej/terminalowej (`polservex`) do parametryzacji serw, która będzie komunikować się z ESP32 przez TCP z użyciem komunikatów JSON.
 
-### Zadania po stronie ESP32
+### Zadania po stronie ESP32 (projekt `slmp_can`)
 
-1.  **Integracja biblioteki `ArduinoJson`**: Dodać bibliotekę do `platformio.ini`.
+*   **Cel:** Implementacja interfejsu JSON-RPC po TCP do odczytu i zapisu parametrów.
+
+1.  **Integracja biblioteki `ArduinoJson`**: Dodać bibliotekę `bblanchon/ArduinoJson` do `platformio.ini`.
 2.  **Rozbudowa `CommandParser`**:
     *   Dodać logikę w `dataParser`, która rozpoznaje, czy przychodzący string to JSON (np. przez sprawdzenie, czy zaczyna się od `{`).
     *   Jeśli to JSON, przekazać go do nowej funkcji, np. `parseJsonCommand()`.
-    *   Jeśli nie, przekazać go do `TUIManager` tak jak dotychczas.
+    *   Jeśli nie, przekazać go do `TUIManager` tak jak dotychczas (zachowujemy TUI dla prostego debugowania).
 3.  **Implementacja `parseJsonCommand`**: Stworzyć logikę, która parsuje JSON i na podstawie pola `command` wywołuje odpowiednie akcje w `ServoControl` (np. `setParameters`, `getServo`).
 4.  **Implementacja odpowiedzi JSON**: Stworzyć funkcje, które budują odpowiedzi w formacie JSON (np. status `ok`/`error` lub pełne dane serwa) i odsyłają je do klienta TCP.
 5.  **Implementacja mechanizmu monitoringu**: Dodać logikę do obsługi komend `start_monitoring` i `stop_monitoring`, która będzie cyklicznie wysyłać dane o stanie serw do klienta, który o to poprosił.
+6.  **Integracja `SettingsManager`**:
+    *   Ukończyć implementację `SettingsManager` (dodanie brakujących zapisów, getterów/setterów).
+    *   Zintegrować `SettingsManager` z `NetworkManager`, aby dynamicznie konfigurować ustawienia sieciowe.
+    *   **(Opcjonalnie)** Zaimplementować mechanizm wersjonowania konfiguracji w `SettingsManager` dla większej niezawodności.
 
-### Zadania po stronie PC (Aplikacja `ServoSetter GUI` w Pythonie)
 
-1.  **Etap 1: Rdzeń komunikacyjny (Python)**
-    *   Stworzyć klasę/moduł do obsługi połączenia TCP (nawiązywanie, zrywanie, wysyłanie, odbieranie danych).
-    *   Stworzyć funkcje do budowania stringów JSON dla poszczególnych komend (`set_speed`, `go_to_pos` itd.).
-    *   Implementacja wątku sieciowego do asynchronicznego odbierania danych.
-2.  **Etap 2: Struktura interfejsu (Python TUI)**
-    *   Zainicjować projekt z biblioteką `curses` (lub `textual`).
-    *   Stworzyć główny layout aplikacji (np. okno menu, okno statusu, okno główne).
-    *   Implementacja nawigacji po górnym menu.
-3.  **Etap 3: Integracja i logika UI (Python)**
-    *   Połączyć warstwę komunikacji z interfejsem: dane odebrane z ESP32 powinny być wyświetlane w odpowiednich oknach.
-    *   Zaimplementować obsługę akcji użytkownika (np. edycja pola z wartością parametru, kliknięcie przycisku "Wyślij").
-    *   Zbudować widoki dla parametryzacji i monitoringu.
+### Zadania po stronie PC (Aplikacja `polservex` w C++)
+
+*   **Cel:** Stworzenie aplikacji terminalowej w stylu retro (BIOS-like) do parametryzacji serw.
+*   **Technologie:** C++, FTXUI (dla TUI), CMake (system budowania), Asio (dla sieci), nlohmann/json (dla JSON).
+*   **Lokalizacja:** `../../../../_dev/polservex`
+
+1.  **Etap 1: Konfiguracja środowiska i projektu**
+    *   Stworzyć strukturę projektu z `CMakeLists.txt`.
+    *   Skonfigurować kompilator C++ (np. g++, clang).
+    *   Dodać biblioteki FTXUI, Asio, nlohmann/json jako zależności w CMake (np. przez `FetchContent` lub submoduły Git).
+    *   Stworzyć plik `main.cpp` z podstawową pętlą FTXUI, która wyświetla proste okno.
+2.  **Etap 2: Rdzeń komunikacyjny**
+    *   Stworzyć klasę/moduł `TCPClient` (używając Asio) do obsługi połączenia TCP.
+    *   Zaimplementować funkcje do budowania i parsowania stringów JSON (używając `nlohmann/json`).
+    *   Stworzyć wątek sieciowy do asynchronicznego odbierania danych.
+3.  **Etap 3: Struktura i logika interfejsu (FTXUI)**
+    *   Zaprojektować i zaimplementować główny layout aplikacji (menu, okno parametrów, okno statusu).
+    *   Zaimplementować logikę do dynamicznego przełączania widoków w zależności od wybranej opcji w menu.
+    *   Połączyć warstwę komunikacji z interfejsem: dane z sieci powinny być przekazywane do komponentów FTXUI i na bieżąco aktualizowane.
+    *   Zaimplementować obsługę wejścia użytkownika (edycja pól, wysyłanie komend).
 
 ---
 ## Sesja z 2025-12-15
@@ -155,7 +168,7 @@ Naszym nowym celem jest stworzenie aplikacji desktopowej/terminalowej (`ServoSet
 2.  **Stworzenie klasy `SettingsManager`** do centralnego zarządzania konfiguracją.
 3.  **Dalszy rozwój protokołu PMP i TUI** (dodanie brakujących komend i ekranów).
 4.  **Sprawdzanie połączenia z serwami:** Implementacja mechanizmu, który weryfikuje, czy serwo odpowiada. Jeśli serwo jest offline, należy wstrzymać wysyłanie do niego ramek i oznaczyć jego status jako "offline".
-5.  **Analiza wyników testu `HTTPUpdate` (OTA):** Sprawdzenie, czy aktualizacja przez HTTP powiodła się.
+5.  ~~**Analiza wyników testu `HTTPUpdate` (OTA):** Sprawdzenie, czy aktualizacja przez HTTP powiodła się.~~ (Wykonane - OTA działa)
 6.  **Integracja docelowego mechanizmu OTA:** Jeśli test `HTTPUpdate` się powiedzie, zintegrowanie go na stałe z aplikacją.
 
 

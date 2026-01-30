@@ -36,6 +36,7 @@ private:
     void _loadServoList();
 
 public:
+    uint16_t idRecieved = 0;
     ServoControl(CanManager &can);
 
     void begin();

@@ -1,6 +1,6 @@
 #include "SettingManager.h"
 
-SettingMenager::SettingMenager() : _ip(192, 168, 1, 100), _portTCP(5005), _portUDP(5020) {};
+SettingMenager::SettingMenager() : _ip(192, 168, 3, 205), _gateway(192, 168, 3, 213), _subnet(255, 255, 255, 0), _primaryDNS(8, 8, 8, 8), _secondaryDNS(8, 8, 4, 4), _portTCP(5020), _portUDP(5005) {};
 
 SettingMenager &SettingMenager::getInstance()
 {
@@ -23,7 +23,16 @@ void SettingMenager::begin()
     }
 
     String ipStr = _preferences.getString("ip_address", _ip.toString());
+    String gatewayStr = _preferences.getString("gateway_address", _gateway.toString());
+    String subnetStr = _preferences.getString("subnet_address", _subnet.toString());
+    String primaryStr = _preferences.getString("primary_DNS_address", _primaryDNS.toString());
+    String secondaryStr = _preferences.getString("secondary_DNS_address", _secondaryDNS.toString());
+
     _ip.fromString(ipStr);
+    _gateway.fromString(gatewayStr);
+    _subnet.fromString(subnetStr);
+    _primaryDNS.fromString(primaryStr);
+    _secondaryDNS.fromString(secondaryStr);
     _portTCP = _preferences.getUShort("port_tcp", _portTCP);
     _portUDP = _preferences.getUShort("port_udp", _portUDP);
 
@@ -40,6 +49,10 @@ void SettingMenager::save()
     else
     {
         _preferences.putString("ip_address", _ip.toString());
+        _preferences.putString("gateway_address", _gateway.toString());
+        _preferences.putString("subnet_address", _subnet.toString());
+        _preferences.putString("primary_DNS_address", _primaryDNS.toString());
+        _preferences.putString("secondary_DNS_address", _secondaryDNS.toString());
         _preferences.putUShort("port_tcp", _portTCP);
         _preferences.putUShort("port_udp", _portUDP);
 

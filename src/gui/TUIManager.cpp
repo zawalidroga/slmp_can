@@ -22,11 +22,17 @@ void TUIManager::handleCommand(const String &command, ServoControl &servoControl
         break;
 
     case WindowState::NETWORK_STAT:
-        _activeClient->write("Niedostępne. Wpisz [EXIT] żeby wyjść.");
+        _activeClient->write("[c] - can read frame. [t] - tcp. [u] - udp. Wpisz [EXIT] żeby wyjść.");
 
         if (command == "EXIT")
         {
             _currentState = WindowState::MAIN_MENU;
+        }
+        else if (command == "c")
+        {
+            int idd = _servoControl.idRecieved;
+            String iddString = String(idd);
+            _activeClient->write(iddString.c_str());
         };
         break;
 
@@ -50,8 +56,10 @@ void TUIManager::handleCommand(const String &command, ServoControl &servoControl
         // {
         //     _activeServo = command.toInt();
         // };
+        _activeClient->write(command.c_str());
         if (command == "e")
         {
+            _activeClient->write("wychodze!");
             _activeClient->write("\x1B[?25h");
             _currentState = WindowState::MAIN_MENU;
             isMonitoring = false;
@@ -163,11 +171,20 @@ void TUIManager::handleCommand(const String &command, ServoControl &servoControl
         }
         break;
     case WindowState::NETWORK_MONITOR:
+
         if (command == "EXIT")
         {
             _currentState = WindowState::MAIN_MENU;
             _printMainMenu();
         }
+        else if (command == "c")
+        {
+            int idd = _servoControl.idRecieved;
+            String iddString = String(idd);
+            _activeClient->write("id: ");
+            _activeClient->write(iddString.c_str());
+            _activeClient->write("\r\n");
+        };
         break;
     case WindowState::DELETE_SERVO:
     {
@@ -285,7 +302,6 @@ void TUIManager::_mainMenuHandler(const String &c)
             _activeClient->write("\r\n");
         };
 
-        _currentState = WindowState::MAIN_MENU;
         break;
 
     case 4:
@@ -304,7 +320,7 @@ void TUIManager::_mainMenuHandler(const String &c)
         break;
 
     case 7:
-        _activeClient->write("Wpisz [EXIT] żeby wyjść.");
+        _activeClient->write("[c] - can read frame. [t] - tcp. [u] - udp. Wpisz [EXIT] żeby wyjść.\r\n");
         _currentState = WindowState::NETWORK_MONITOR;
         break;
     case 8:

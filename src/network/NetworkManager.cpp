@@ -1,4 +1,5 @@
 #include "NetworkManager.h"
+#include "../Settings/SettingManager.h"
 
 bool NetworkManager::_ethConnected = false;
 
