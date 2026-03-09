@@ -52,7 +52,7 @@ public:
     void frameHandler(uint8_t *data, size_t packetSize, IPAddress remoteIp, uint16_t remotePort);
 
     std::function<void(uint8_t *, size_t, IPAddress, uint16_t)> sendReply;
-    std::function<void(String msg)> onLog;
+    std::function<void(const String msg, bool isRx)> onPMPframe;
 };
 
 #endif

@@ -4,22 +4,23 @@
 #include "./network/AsyncUDPManager.h"
 #include "./network/PMPmanager.h"
 #include "./network/AsyncTCPServer.h"
-#include "./network/CommandParser.h"
+#include "./network/DesktopCommManager.h"
 #include "./can/ServoControl.h"
-#include "./gui/TUIManager.h"
 #include "./Settings/SettingManager.h"
 
 #define SERVO_CONNECTION_CKECK_INTERVAL 3000 // 3s
+#define STATUS_UPDATE_INTERVAL 1000          // 3s
 
-NetworkManager &networkManger = NetworkManager::getInstance();
+NetworkManager &networkManager = NetworkManager::getInstance();
 CanManager canManager;
 ServoControl servos(canManager);
-AsyncUdpManager &udpManager = networkManger.getUdpManager();
-AsyncTcpServer &tcpManager = networkManger.getTcpServer();
-CommandManager commManager(servos);
-PMPmanager slmpManager(servos);
+AsyncUdpManager &udpManager = networkManager.getUdpManager();
+AsyncTcpServer &tcpManager = networkManager.getTcpServer();
+PMPmanager pmpManager(servos);
+DesktopCommManager desktopCommManager(servos);
 
 unsigned long lastServoConnectionCheck = 0;
+unsigned long lastStatusUpdate = 0;
 
 void servoMonitorTask() {};
 
@@ -28,10 +29,10 @@ void setup()
     Serial.begin(115200);
     SettingMenager::getInstance().begin();
     canManager.begin();
-    networkManger.begin();
+    networkManager.begin();
 
     //-------------------poczekajka na połączenie ----------------
-    while (!networkManger.isConnected())
+    while (!networkManager.isConnected())
     {
         delay(500);
         Serial.print(".");
@@ -42,26 +43,22 @@ void setup()
 
     servos.begin();
 
-    slmpManager.onLog = [](String msg)
-    {
-        commManager.getTuiManager().printNetworkMonitor(msg);
-    };
-    slmpManager.sendReply = [](uint8_t *resBuffer, size_t len, IPAddress remoteIp, uint16_t remotePort)
+    pmpManager.sendReply = [](uint8_t *resBuffer, size_t len, IPAddress remoteIp, uint16_t remotePort)
     {
         NetworkManager::getInstance().getUdpManager().sendFrame(resBuffer, len, remoteIp, remotePort);
     };
 
     tcpManager.onClientData = [](uint8_t *data, size_t size, AsyncClient *client)
     {
-        commManager.dataParser(data, size, client);
-        // Serial.println("[onClientData] cośtam się wysyła");
+        desktopCommManager.dataParser(data, size, client);
+        //networkManager.sendSystemLog("[onClientData] cośtam się wysyła");
     };
 
     tcpManager.onClientConnect = [](AsyncClient *client)
     {
-        TUIManager &tui = commManager.getTuiManager();
+        // TUIManager &tui = commManager.getTuiManager();
 
-        tui.onNewClientConnect(client);
+        // tui.onNewClientConnect(client);
     };
 
     udpManager.onFrame = [](AsyncUDPPacket &packet)
@@ -71,8 +68,19 @@ void setup()
         int packetSize = packet.length();
         uint8_t *data = packet.data();
 
-        slmpManager.frameHandler(data, packetSize, remoteIp, remotePort);
+        pmpManager.frameHandler(data, packetSize, remoteIp, remotePort);
     };
+
+    servos.onCanFrame = [](const CanFrame &frame, bool isRx)
+    {
+        desktopCommManager.sendCanLog(frame, isRx);
+    };
+
+    pmpManager.onPMPframe = [](const String msg, bool isRx)
+    {
+        desktopCommManager.sendPMPLog(msg, isRx);
+    };
+
     // ------- konfiguracja OTA ---------
     ArduinoOTA.setHostname("polpakex");
     ArduinoOTA.setPassword("1992");
@@ -97,18 +105,18 @@ void loop()
 {
     ArduinoOTA.handle();
 
-    if (commManager.getTuiManager().isMonitoring)
-    {
-        if (millis() - commManager.getTuiManager().lastStatusUpdate > STATUS_UPDATE_INTERVAL)
-        {
-            commManager.getTuiManager().lastStatusUpdate = millis();
-            commManager.getTuiManager().printServoMonitor();
-        };
-    };
-
     if (millis() - lastServoConnectionCheck > SERVO_CONNECTION_CKECK_INTERVAL)
     {
         lastServoConnectionCheck = millis();
         servos.checkServoConnection();
+    }
+
+    if (millis() - lastStatusUpdate > STATUS_UPDATE_INTERVAL)
+    {
+        lastStatusUpdate = millis();
+        if (networkManager.isConnected())
+        {
+            desktopCommManager.sendBroadcastStatus();
+        }
     }
 };

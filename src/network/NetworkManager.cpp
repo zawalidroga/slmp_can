@@ -16,38 +16,37 @@ void NetworkManager::begin()
 
     if (!ETH.begin(ETH_ADDR, ETH_POWER_PIN, ETH_MDC_PIN, ETH_MDIO_PIN, ETH_PHY_LAN8720, ETH_CLOCK_GPIO0_IN))
     {
-        Serial.println("FATAL: Inicjalizacja sprzętu ETH nie powiodła się!");
+        Serial.println("[ETH] [??] FATAL: Inicjalizacja sprzętu ETH nie powiodła się!");
         return;
     };
 
-    IPAddress local_IP(192, 168, 3, 205);
-    IPAddress gateway(192, 168, 3, 213);
-    IPAddress subnet(255, 255, 255, 0);
-    IPAddress primaryDNS(8, 8, 8, 8);
-    IPAddress secondaryDNS(8, 8, 4, 4);
-
-    if (!ETH.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
-    {
-        Serial.println("Błąd: nie udało się skonfigurować IP");
-        return;
-    };
-
-    Serial.println("Konfiguracja IP zakończona, uruchamiam serwery TCP/UDP...");
+    Serial.println("[ETH] Konfiguracja IP zakończona, uruchamiam serwery TCP/UDP...");
     TCPserver.start(5020);
     // udp.start(5055);
 
     // _ethConnected = true;
 };
 
-void NetworkManager::ethEvent(WiFiEvent_t event)
+void NetworkManager::ethEvent(arduino_event_id_t event, arduino_event_info_t info)
 {
-    Serial.print("ten ivent: ");
+    IPAddress local_IP(192, 168, 10, 205);
+    IPAddress gateway(192, 168, 10, 1);
+    IPAddress subnet(255, 255, 255, 0);
+    IPAddress primaryDNS(8, 8, 8, 8);
+    IPAddress secondaryDNS(8, 8, 4, 4);
+    Serial.print("[ETH] event no.: ");
     Serial.println(event);
     switch (event)
     {
     case ARDUINO_EVENT_ETH_START:
         Serial.println("[ETH] Started!");
         ETH.setHostname("polpakex");
+
+        if (!ETH.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
+        {
+            Serial.println("[ETH] [??] Błąd: nie udało się skonfigurować IP");
+            return;
+        };
         break;
     case ARDUINO_EVENT_ETH_CONNECTED:
         Serial.println("[ETH] Connected!");
@@ -92,3 +91,9 @@ AsyncTcpServer &NetworkManager::getTcpServer()
 };
 
 void NetworkManager::loop() {};
+
+void NetworkManager::sendSystemLog(String msg)
+{
+    String jsonLog = "{\"type\":\"system_log\",\"data\":\"" + msg + "\"}";
+    TCPserver.sendToAll(jsonLog);
+};

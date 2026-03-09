@@ -15,16 +15,16 @@ void ServoDevice::setServoMode(int8_t mode)
 
 void ServoDevice::servoActualState() {};
 void ServoDevice::readPrivateServoState() {};
-uint8_t ServoDevice::getID()
+uint8_t ServoDevice::getID() const
 {
     return _id;
 };
 
-uint8_t ServoDevice::getServoMode()
+uint8_t ServoDevice::getServoMode() const
 {
     return _servoMode;
 };
-uint8_t ServoDevice::getPositioningMode()
+uint8_t ServoDevice::getPositioningMode() const
 {
     return _positioningMode;
 };
@@ -34,7 +34,7 @@ void ServoDevice::setPositioningMode(uint8_t mode)
     _positioningMode = mode;
 }
 
-int16_t ServoDevice::getParameters(RealParameter parName)
+int16_t ServoDevice::getParameters(RealParameter parName) const
 {
     switch (parName)
     {
@@ -65,7 +65,7 @@ int16_t ServoDevice::getParameters(RealParameter parName)
 
 // ###################### STATUSY SERWA ##########################
 
-int16_t ServoDevice::getServoStatus()
+int16_t ServoDevice::getServoStatus() const
 {
     return _status;
 };
@@ -77,7 +77,7 @@ void ServoDevice::clearStatus(ServoStatusFlags flags)
 {
     _status &= ~static_cast<uint16_t>(flags);
 };
-bool ServoDevice::isStatusSet(ServoStatusFlags flags)
+bool ServoDevice::isStatusSet(ServoStatusFlags flags) const
 {
     return (_status & static_cast<uint16_t>(flags)) != 0;
 };
@@ -234,7 +234,7 @@ void ServoDevice::updateLastSeen()
     _lastSeen = millis();
 };
 
-unsigned long ServoDevice::getLastSeen()
+unsigned long ServoDevice::getLastSeen() const
 {
     return _lastSeen;
 }

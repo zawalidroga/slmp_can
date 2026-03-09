@@ -66,7 +66,7 @@ void CanManager::_canSendTask(void *pvParameters)
 
         if (manager->onWriteFrame && manager->deviceNo)
         {
-            std::vector<uint8_t> servoIDs = manager->getOnlineServosIDs();
+            std::vector<uint8_t> servoIDs = manager->getAllServosIDs ? manager->getAllServosIDs() : std::vector<uint8_t>();
             if (!servoIDs.empty())
             {
                 for (uint8_t id : servoIDs)

@@ -84,15 +84,15 @@ public:
 
     void servoActualState();
     void readPrivateServoState();
-    uint8_t getID();
-    uint8_t getServoMode();
-    uint8_t getPositioningMode();
-    int16_t getParameters(RealParameter parName);
+    uint8_t getID() const;
+    uint8_t getServoMode() const;
+    uint8_t getPositioningMode() const;
+    int16_t getParameters(RealParameter parName) const;
 
-    int16_t getServoStatus();
+    int16_t getServoStatus() const;
     void setStatus(ServoStatusFlags flags);
     void clearStatus(ServoStatusFlags flags);
-    bool isStatusSet(ServoStatusFlags flags);
+    bool isStatusSet(ServoStatusFlags flags) const;
 
     void setParameters(ParameterServo parName, uint32_t value);
     void setServoMonitor(RealParameter parName, int16_t value);
@@ -109,7 +109,7 @@ public:
     void updateBusyPositioningStatus();
 
     void updateLastSeen();
-    unsigned long getLastSeen();
+    unsigned long getLastSeen() const;
 
     void saveState(Preferences &prefs);
     void loadState(Preferences &prefs);

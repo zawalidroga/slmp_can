@@ -12,17 +12,17 @@ void PMPmanager::frameHandler(uint8_t *data, size_t packetSize, IPAddress remote
     {
         Serial.println(_reqBuffer[i], HEX);
     }
-    if (onLog)
+    if (onPMPframe)
     {
 
-        String msg = "[IN] IP: " + String(remoteIp) + "Dane: ";
+        String msg = "IP: " + String(remoteIp) + "Dane: ";
         for (size_t i = 0; i < packetSize && i < 32; i++)
         {
             char hex[4];
             sprintf(hex, "%02X ", data[i]);
             msg += hex;
         }
-        onLog(msg);
+        onPMPframe(msg, false);
     };
     // return;
 
@@ -158,17 +158,17 @@ void PMPmanager::frameHandler(uint8_t *data, size_t packetSize, IPAddress remote
     uint16_t resHeaderLen = _buildResponseHeader(endCode);
     uint16_t totalResLen = resHeaderLen + resPayloadLen;
 
-    if (onLog)
+    if (onPMPframe)
     {
 
-        String msg = "[OUT] IP: " + String(remoteIp) + "Dane: ";
+        String msg = "IP: " + String(remoteIp) + "Dane: ";
         for (size_t i = 0; i < totalResLen && i < 32; i++)
         {
             char hex[4];
-            sprintf(hex, "%02X ", data[i]);
+            sprintf(hex, "%02X ", _resBuffer[i]);
             msg += hex;
         }
-        onLog(msg);
+        onPMPframe(msg, true);
     };
 
     if (sendReply)

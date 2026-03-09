@@ -19,7 +19,7 @@ private:
     AsyncUdpManager udp;
     AsyncTcpServer TCPserver;
 
-    static void ethEvent(WiFiEvent_t event);
+    static void ethEvent(arduino_event_id_t event, arduino_event_info_t info);
     static bool _ethConnected;
 
 public:
@@ -31,6 +31,8 @@ public:
 
     AsyncUdpManager &getUdpManager();
     AsyncTcpServer &getTcpServer();
+
+    void sendSystemLog(String msg);
 };
 
 #endif

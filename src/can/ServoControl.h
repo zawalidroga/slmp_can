@@ -45,15 +45,18 @@ public:
     std::vector<uint8_t> getServoIds();
     std::vector<uint8_t> getOnlineServoIds();
     ServoDevice *getServo(int8_t id);
+    const std::map<uint8_t, ServoDevice> &getServosMap() { return servos; }
     void parseCanRxFrame(const CanFrame &frame);
     void parseCanTxFrame(CanFrame &frame, int id);
-    void parseSLMPFrameRx(int frame);
-    void parseSLMPFrameTx(int frame);
+    void parsePMPFrameRx(int frame);
+    void parsePMPFrameTx(int frame);
 
     void saveServoState(uint8_t id);
     bool deleteServo(uint8_t id);
 
     void checkServoConnection();
+
+    std::function<void(const CanFrame &, bool)> onCanFrame;
 };
 
 #endif

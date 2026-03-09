@@ -19,6 +19,7 @@ void AsyncTcpServer::onClient(AsyncClient *client)
 {
 
     Serial.println("[AsyncTCP] Client connected");
+    _clients.push_back(client);
 
     if (this->onClientConnect)
     {
@@ -39,6 +40,21 @@ void AsyncTcpServer::onClient(AsyncClient *client)
                    },
                    nullptr);
 
-    client->onDisconnect([](void *arg, AsyncClient *c)
-                         { Serial.println("[AsyncTCP] Client disconnected"); }, nullptr);
+    client->onDisconnect([this](void *arg, AsyncClient *c)
+                         { 
+                            Serial.println("[AsyncTCP] Client disconnected"); 
+                            
+
+                            _clients.erase(std::find(_clients.begin(), _clients.end(), c)); }, nullptr);
+};
+
+void AsyncTcpServer::sendToAll(const String &message)
+{
+    for (auto &&c : _clients)
+    {
+        if (c->connected())
+        {
+            c->write(message.c_str(), message.length());
+        }
+    }
 }

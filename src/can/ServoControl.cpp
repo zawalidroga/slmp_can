@@ -1,5 +1,6 @@
 #include "ServoControl.h"
 #include <vector>
+#include "../network/DesktopCommManager.h"
 
 ServoControl::ServoControl(CanManager &can)
     : _can(can)
@@ -13,6 +14,10 @@ ServoControl::ServoControl(CanManager &can)
     can.getOnlineServosIDs = [this]()
     {
         return this->getOnlineServoIds();
+    };
+    can.getAllServosIDs = [this]()
+    {
+        return this->getServoIds();
     };
 };
 
@@ -31,6 +36,15 @@ void ServoControl::parseCanTxFrame(CanFrame &frame, int id)
         Serial.println("[ServoControl] Brak serwa o podanym ID");
         return;
     };
+    if (!servo->isStatusSet(ServoDevice::ServoStatusFlags::ONLINE))
+    {
+        frame.identifier = (0 << 8) | (id & 0xFF);
+        frame.extd = 1;
+        frame.data_length_code = 8;
+        for (int i = 0; i < 8; i++)
+            frame.data[i] = 0x00;
+        return;
+    }
 
     const int8_t mode = servo->getServoMode();
     int16_t speed16 = (int16_t)servo->speed;
@@ -123,7 +137,13 @@ void ServoControl::parseCanTxFrame(CanFrame &frame, int id)
         break;
     default:
         break;
-    }
+    };
+
+    // Logowanie do aplikacji
+    if (onCanFrame)
+    {
+        onCanFrame(frame, true);
+    };
 };
 
 void ServoControl::parseCanRxFrame(const CanFrame &frame)
@@ -162,6 +182,11 @@ void ServoControl::parseCanRxFrame(const CanFrame &frame)
     // Update statusów
     servo->updateInPositionStatus();
     servo->updateBusyStatus();
+
+    if (onCanFrame)
+    {
+        onCanFrame(frame, false);
+    };
 };
 
 void ServoControl::setServo(int8_t id, bool save)
