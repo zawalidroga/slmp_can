@@ -110,6 +110,7 @@ void DesktopCommManager::_handlePing(JsonDocument &doc, AsyncClient *client)
 
     String output;
     serializeJson(response, output);
+    output += "\n";
     client->write(output.c_str(), output.length());
 };
 
@@ -119,6 +120,7 @@ void DesktopCommManager::_handleControl(JsonDocument &doc, AsyncClient *client)
 
     String output;
     serializeJson(response, output);
+    output += "\n";
     client->write(output.c_str(), output.length());
 };
 void DesktopCommManager::_handleCanLog(JsonDocument &doc, AsyncClient *client)
@@ -127,6 +129,7 @@ void DesktopCommManager::_handleCanLog(JsonDocument &doc, AsyncClient *client)
 
     String output;
     serializeJson(response, output);
+    output += "\n";
     client->write(output.c_str(), output.length());
 };
 void DesktopCommManager::_handlePMPLog(JsonDocument &doc, AsyncClient *client)
@@ -135,6 +138,7 @@ void DesktopCommManager::_handlePMPLog(JsonDocument &doc, AsyncClient *client)
 
     String output;
     serializeJson(response, output);
+    output += "\n";
     client->write(output.c_str(), output.length());
 };
 void DesktopCommManager::_handleGetParams(JsonDocument &doc, AsyncClient *client)
@@ -143,6 +147,7 @@ void DesktopCommManager::_handleGetParams(JsonDocument &doc, AsyncClient *client
 
     String output;
     serializeJson(response, output);
+    output += "\n";
     client->write(output.c_str(), output.length());
 };
 void DesktopCommManager::_handleSetParams(JsonDocument &doc, AsyncClient *client)
@@ -151,6 +156,7 @@ void DesktopCommManager::_handleSetParams(JsonDocument &doc, AsyncClient *client
 
     String output;
     serializeJson(response, output);
+    output += "\n";
     client->write(output.c_str(), output.length());
 };
 void DesktopCommManager::_handleSetSettings(JsonDocument &doc, AsyncClient *client)
@@ -159,6 +165,7 @@ void DesktopCommManager::_handleSetSettings(JsonDocument &doc, AsyncClient *clie
 
     String output;
     serializeJson(response, output);
+    output += "\n";
     client->write(output.c_str(), output.length());
 };
 void DesktopCommManager::_handleGetSettings(JsonDocument &doc, AsyncClient *client)
@@ -167,6 +174,7 @@ void DesktopCommManager::_handleGetSettings(JsonDocument &doc, AsyncClient *clie
 
     String output;
     serializeJson(response, output);
+    output += "\n";
     client->write(output.c_str(), output.length());
 };
 
@@ -183,6 +191,8 @@ void DesktopCommManager::sendCanLog(const CanFrame &frame, bool isRx)
     };
     String output;
     serializeJson(doc, output);
+    Serial.println(output);
+    output += "\n";
     NetworkManager::getInstance().getTcpServer().sendToAll(output);
 };
 
@@ -194,6 +204,7 @@ void DesktopCommManager::sendPMPLog(const String msg, bool isRx)
     doc["data"] = msg;
     String output;
     serializeJson(doc, output);
+    output += "\n";
     NetworkManager::getInstance().getTcpServer().sendToAll(output);
 };
 
@@ -209,7 +220,7 @@ void DesktopCommManager::sendBroadcastStatus()
         JsonObject s = servosArr.add<JsonObject>();
         s["id"] = id;
         s["pos"] = servo.getParameters(ServoDevice::RealParameter::POSITION);
-        s["on"] = servo.isStatusSet(ServoDevice::ServoStatusFlags::ENABLED);
+        s["on"] = servo.isStatusSet(ServoDevice::ServoStatusFlags::ONLINE);
         s["busy"] = servo.isStatusSet(ServoDevice::ServoStatusFlags::BUSY);
         s["curr"] = servo.getParameters(ServoDevice::RealParameter::CURRENT);
         s["temp"] = servo.getParameters(ServoDevice::RealParameter::TEMPERATURE);
@@ -217,6 +228,7 @@ void DesktopCommManager::sendBroadcastStatus()
     };
     String output;
     serializeJson(response, output);
+    output += "\n";
     NetworkManager::getInstance().getTcpServer().sendToAll(output);
 };
 

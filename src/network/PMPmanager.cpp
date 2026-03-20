@@ -1,5 +1,6 @@
 #include "PMPmanager.h"
 #include <Arduino.h>
+#include "NetworkManager.h"
 
 PMPmanager::PMPmanager(ServoControl &sm) : _servoManager(sm) {};
 
@@ -8,14 +9,11 @@ void PMPmanager::frameHandler(uint8_t *data, size_t packetSize, IPAddress remote
 
     memcpy(_reqBuffer, data, packetSize);
 
-    for (int i = 0; i < 16; i++)
-    {
-        Serial.println(_reqBuffer[i], HEX);
-    }
     if (onPMPframe)
     {
 
-        String msg = "IP: " + String(remoteIp) + "Dane: ";
+        String msg = " IP: " + remoteIp.toString() + " Dane: ";
+
         for (size_t i = 0; i < packetSize && i < 32; i++)
         {
             char hex[4];
@@ -31,137 +29,158 @@ void PMPmanager::frameHandler(uint8_t *data, size_t packetSize, IPAddress remote
 
     if (_reqBuffer[1] != 0x21 || _reqBuffer[0] != 0x37)
     {
-        // Serial.println("[PMP] Odebrano niewałaściwy pakiet - błędny header");
+        NetworkManager::getInstance().sendSystemLog("[PMP] WRONG HEADER!");
+
         return;
     };
 
-    uint8_t cmd = _reqBuffer[3];
-    uint8_t subcmd = _reqBuffer[2];
-    uint8_t idServo = _reqBuffer[5];
-    ServoDevice *servo;
+    uint8_t servosNo = _reqBuffer[3];
+
+    if (_reqBuffer[3] == 0)
+    {
+        NetworkManager::getInstance().sendSystemLog("[PMP] WRONG SERVO NO!");
+        endCode = PMP_ERR_INVALID_DATA;
+        uint16_t resHeaderLen = _buildResponseHeader(endCode);
+        uint16_t totalResLen = resHeaderLen + resPayloadLen;
+        return;
+    };
 
     uint8_t *resPayloadPtr = &_resBuffer[6]; // Wskaźnik na początek danych odpowiedzi
-    if (cmd != PMP_CMD_DEVICE_READ)
-    {
-        servo = _servoManager.getServo(idServo);
-        if (servo == nullptr)
-        {
-            // DODAC ZBUDOWANIE I WYSŁANIE ODPOWIEDZI Z BŁĘDEM;
-            // Serial.print("[PPM] Niepoprawne ID serwa: ");
-            // Serial.println(idServo);
-            endCode = PMP_ERR_INVALID_ID;
-            return;
-        };
-    };
-    switch (cmd)
-    {
-    case PMP_CMD_DEVICE_READ:
-        switch (subcmd)
-        {
-        case PMP_SUBCMD_READ_STATUS:
-        {
-            Serial.println("[PMP] Odczyt parametrów z serwa.");
-            resPayloadLen = _buildReply(resPayloadPtr);
-            break;
-        }
-        default:
-            endCode = PMP_ERR_INVALID_CMD;
-            break;
-        };
-        break;
-    case PMP_CMD_DEVICE_WRITE:
-    {
-        uint8_t *reqPayloadPtr = &_reqBuffer[6];
-        switch (subcmd)
-        {
-        case PMP_SUBCMD_WRITE_GO:
-        {
-            int mode = servo->getPositioningMode();
-            switch (mode)
-            {
-            case 0: // tryb jezdy na pozycje
-            {
-                uint32_t val = (*reqPayloadPtr << 0) | (*(reqPayloadPtr + 1) << 8) | (*(reqPayloadPtr + 2) << 16) | *(reqPayloadPtr + 3) << 24;
-                servo->position = val;
-                Serial.print("Serwo ruszyło na pozycje: ");
-                Serial.println(val);
-            }
-            break;
-            case 1: // tryb jog
-                if (*reqPayloadPtr == 1)
-                {
-                    // servo -> speed = (*(reqPayloadPtr + 2) << 0) | (*(reqPayloadPtr + 3) << 8) | (*(reqPayloadPtr + 4) << 16) | *(reqPayloadPtr + 5) << 24;
-                    servo->setServoMode(2);
-                    servo->position = servo->getParameters(ServoDevice::RealParameter::POSITION);
-                }
-                else
-                {
-                    servo->position = servo->getParameters(ServoDevice::RealParameter::POSITION);
-                    servo->setServoMode(6);
-                }
-                break;
-            case 2: // tryb bazowania
-                break;
-            default:
-                // Serial.println("[ERR 05][PMP] Błędny tryb pozycjonowania!");
-                endCode = PSMP_ERR_INVALID_POSITIONING_MODE;
-                servo->setStatus(ServoDevice::ServoStatusFlags::ERROR);
-                break;
-            }
+    ServoCommandBlock *currentBlock = (ServoCommandBlock *)(_reqBuffer + 4);
 
-            break;
-        };
-        case PMP_SUBCMD_WRITE_MODE:
+    for (size_t i = 0; i < servosNo; i++)
+    {
+        ServoDevice *servo = _servoManager.getServo(currentBlock->id);
+        if (currentBlock->cmd != PMP_CMD_DEVICE_READ)
         {
-            uint8_t mode = *reqPayloadPtr;
-            servo->setPositioningMode(mode);
-            break;
-        }
-        case PMP_SUBCMD_WRITE_PARAM:
-        {
-            // Serial.println("[PMP] Otrzymane dane do zapisu:");
-            for (int i = 0; i < 7; i++)
+            if (servo == nullptr)
             {
-                ServoDevice::ParameterServo param = ServoDevice::toParameterServo(i);
-                if (i < 5)
-                {
-                    uint32_t val = (*reqPayloadPtr << 0) | (*(reqPayloadPtr + 1) << 8) | (*(reqPayloadPtr + 2) << 16) | *(reqPayloadPtr + 3) << 24;
-                    servo->setParameters(param, val); // Zapis do serwa
-                    Serial.println(val);
-                    reqPayloadPtr += 4;
-                }
-                else
-                {
-                    uint16_t val = (*(reqPayloadPtr) << 0) | *(reqPayloadPtr + 1) << 8;
-                    servo->setParameters(param, val); // Zapis do serwa
-                    Serial.println(val);
-                    reqPayloadPtr += 2;
-                }
+
+                endCode = PMP_ERR_INVALID_ID;
+                uint16_t resHeaderLen = _buildResponseHeader(endCode);
+                uint16_t totalResLen = resHeaderLen + resPayloadLen;
+                NetworkManager::getInstance().sendSystemLog("[PMP] NIE POPRAWNE ID SERWA: " + String(currentBlock->id));
+                return;
             };
+        };
+        NetworkManager::getInstance().sendSystemLog("[PMP] ID: " + String(currentBlock->id) + " komenda: " + String(currentBlock->cmd) + " subkomenda: " + String(currentBlock->subcmd));
+        switch (currentBlock->cmd)
+        {
+        case PMP_CMD_DEVICE_READ:
+            switch (currentBlock->subcmd)
+            {
+            case PMP_SUBCMD_READ_STATUS:
+            {
+                Serial.println("[PMP] Odczyt parametrów z serwa.");
+
+                break;
+            }
+            default:
+                endCode = PMP_ERR_INVALID_CMD;
+                break;
+            };
+            break;
+        case PMP_CMD_DEVICE_WRITE:
+        {
+
+            switch (currentBlock->subcmd)
+            {
+            case PMP_SUBCMD_WRITE_GO:
+            {
+                int mode = servo->getPositioningMode();
+                switch (mode)
+                {
+                case 0: // tryb jezdy na pozycje
+                {
+                    NetworkManager::getInstance().sendSystemLog("[PMP] JAZDA!! pozycja: " + String(currentBlock->position) + " predkosc: " + String(currentBlock->speed) + " przyspieszenie: " + String(currentBlock->acceleration));
+                    // uint32_t val = (*reqPayloadPtr << 0) | (*(reqPayloadPtr + 1) << 8) | (*(reqPayloadPtr + 2) << 16) | *(reqPayloadPtr + 3) << 24;
+                    servo->position = currentBlock->position;
+                    servo->speed = currentBlock->speed;
+                    servo->acceleration = currentBlock->acceleration;
+                }
+                break;
+                case 1: // tryb jog
+                    if (currentBlock->position == 1)
+                    {
+                        // servo -> speed = (*(reqPayloadPtr + 2) << 0) | (*(reqPayloadPtr + 3) << 8) | (*(reqPayloadPtr + 4) << 16) | *(reqPayloadPtr + 5) << 24;
+                        servo->setServoMode(2);
+                        servo->position = servo->getParameters(ServoDevice::RealParameter::POSITION);
+                    }
+                    else
+                    {
+                        servo->position = servo->getParameters(ServoDevice::RealParameter::POSITION);
+                        servo->setServoMode(6);
+                    }
+                    break;
+                case 2: // tryb bazowania
+                    servo->setStatus(ServoDevice::ServoStatusFlags::HPR_REQUEST);
+                    servo->clearStatus(ServoDevice::ServoStatusFlags::HPR_COMPLETED);
+                    servo->makeItHome();
+                    break;
+                default:
+                    // Serial.println("[ERR 05][PMP] Błędny tryb pozycjonowania!");
+                    endCode = PSMP_ERR_INVALID_POSITIONING_MODE;
+                    servo->setStatus(ServoDevice::ServoStatusFlags::ERROR);
+                    break;
+                }
+
+                break;
+            };
+            case PMP_SUBCMD_WRITE_MODE:
+            {
+                uint8_t mode = currentBlock->position;
+                servo->setPositioningMode(mode);
+                break;
+            }
+            case PMP_SUBCMD_WRITE_PARAM:
+            {
+                // Serial.println("[PMP] Otrzymane dane do zapisu:");
+                servo->position = currentBlock->position;
+                servo->speed = currentBlock->speed;
+                servo->acceleration = currentBlock->acceleration;
+                servo->position = currentBlock->position;
+            }
+            default:
+                NetworkManager::getInstance().sendSystemLog("[PMP] WRONG SUBCMD NO!");
+                endCode = PMP_ERR_INVALID_CMD;
+                break;
+            }
 
             break;
         }
+        case PMP_CMD_DEVICE_ONOFF:
+
+            if (currentBlock->subcmd == 1 && !servo->isStatusSet(ServoDevice::ServoStatusFlags::ENABLED))
+            {
+
+                servo->setStatus(ServoDevice::ServoStatusFlags::ENABLED);
+                servo->setServoMode(6);
+                // uint16_t actualPosition = servo->getParameters(ServoDevice::RealParameter::POSITION) * 10000;
+                servo->position = servo->getParameters(ServoDevice::RealParameter::POSITION) * 10000;
+            }
+            else if (currentBlock->subcmd != 1 && !servo->isStatusSet(ServoDevice::ServoStatusFlags::ENABLED))
+            {
+                servo->clearStatus(ServoDevice::ServoStatusFlags::ENABLED);
+                servo->setServoMode(99);
+            }
+
+            break;
         default:
+            NetworkManager::getInstance().sendSystemLog("[PMP] WRONG CMD NO!");
             endCode = PMP_ERR_INVALID_CMD;
             break;
-        }
-        resPayloadLen = _buildReply(resPayloadPtr);
-        break;
+        };
+        currentBlock++;
     }
-    case PMP_CMD_DEVICE_ONOFF:
-        break;
-    default:
-        endCode = PMP_ERR_INVALID_CMD;
-        break;
-    };
+
+    resPayloadLen = _buildReply(resPayloadPtr);
 
     uint16_t resHeaderLen = _buildResponseHeader(endCode);
     uint16_t totalResLen = resHeaderLen + resPayloadLen;
 
     if (onPMPframe)
     {
-
-        String msg = "IP: " + String(remoteIp) + "Dane: ";
+        String msg = " IP: " + remoteIp.toString() + " Dane: ";
         for (size_t i = 0; i < totalResLen && i < 32; i++)
         {
             char hex[4];
@@ -185,8 +204,8 @@ uint16_t PMPmanager::_buildResponseHeader(uint16_t endCode)
     _resBuffer[1] = (uint8_t)(HEADER_PMP >> 8);   // 0x21
     _resBuffer[0] = (uint8_t)(HEADER_PMP & 0xFF); // 0x37
 
-    // 2. Kopiuj pola docelowe z żądania (bajty 2-3)
-    memcpy(&_resBuffer[2], &_reqBuffer[2], 2);
+    // 2. Kopiuj pola docelowe z żądania (bajty 4-5)
+    memcpy(&_resBuffer[2], &_reqBuffer[4], 2);
 
     // 4. Kod zakończenia (2 bajty)
     _resBuffer[5] = servosNumber; // liczba serw

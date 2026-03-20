@@ -29,8 +29,8 @@ void SettingMenager::begin()
         String ipStr = _preferences.getString("ip_address", _ip.toString());
         String gatewayStr = _preferences.getString("gateway_address", _gateway.toString());
         String subnetStr = _preferences.getString("subnet_address", _subnet.toString());
-        String primaryStr = _preferences.getString("primary_DNS_address", _primaryDNS.toString());
-        String secondaryStr = _preferences.getString("secondary_DNS_address", _secondaryDNS.toString());
+        String primaryStr = _preferences.getString("dns_p", _primaryDNS.toString());
+        String secondaryStr = _preferences.getString("dns_s", _secondaryDNS.toString());
 
         _ip.fromString(ipStr);
         _gateway.fromString(gatewayStr);
@@ -56,8 +56,8 @@ void SettingMenager::save()
         _preferences.putString("ip_address", _ip.toString());
         _preferences.putString("gateway_address", _gateway.toString());
         _preferences.putString("subnet_address", _subnet.toString());
-        _preferences.putString("primary_DNS_address", _primaryDNS.toString());
-        _preferences.putString("secondary_DNS_address", _secondaryDNS.toString());
+        _preferences.putString("dns_p", _primaryDNS.toString());
+        _preferences.putString("dns_s", _secondaryDNS.toString());
         _preferences.putUShort("port_tcp", _portTCP);
         _preferences.putUShort("port_udp", _portUDP);
 

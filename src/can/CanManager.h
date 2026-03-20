@@ -5,8 +5,8 @@
 #include "freertos/queue.h"
 #include <vector>
 
-#define CAN_TX_PIN GPIO_NUM_5
-#define CAN_RX_PIN GPIO_NUM_4
+#define CAN_TX_PIN GPIO_NUM_32
+#define CAN_RX_PIN GPIO_NUM_33
 
 #define KEEP_ALIVE_INTERVAL_MS 50 // ms
 

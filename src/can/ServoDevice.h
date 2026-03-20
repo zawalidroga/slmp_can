@@ -8,8 +8,8 @@ class ServoDevice
 {
 private:
     int8_t _id;
-    uint8_t _servoMode = 99;
-    uint8_t _positioningMode = 0;
+    uint8_t _servoMode = 99;      // do cana do serwa
+    uint8_t _positioningMode = 0; // esp
     int16_t _actualPosition = 0;
     int16_t _actualSpeed = 0;
     int16_t _actualCurrent = 0;
@@ -81,6 +81,9 @@ public:
 
     bool servoInPosition = true;
     bool isOn = false;
+    bool isHoming = false;
+
+    void makeItHome();
 
     void servoActualState();
     void readPrivateServoState();

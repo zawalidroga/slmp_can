@@ -1,6 +1,7 @@
 #include "ServoControl.h"
 #include <vector>
 #include "../network/DesktopCommManager.h"
+#include "../network/NetworkManager.h"
 
 ServoControl::ServoControl(CanManager &can)
     : _can(can)
@@ -28,14 +29,17 @@ void ServoControl::begin()
 
 void ServoControl::parseCanTxFrame(CanFrame &frame, int id)
 {
-
+    // NetworkManager::getInstance().sendSystemLog("[CAN] serva nie ma");
     ServoDevice *servo = getServo(id);
     // const int8_t id = servo->getID();
     if (servo == nullptr)
     {
         Serial.println("[ServoControl] Brak serwa o podanym ID");
+        NetworkManager::getInstance().sendSystemLog("[SERVO_CTRL] No servo with ID" + String(id));
         return;
     };
+
+
     if (!servo->isStatusSet(ServoDevice::ServoStatusFlags::ONLINE))
     {
         frame.identifier = (0 << 8) | (id & 0xFF);
@@ -105,7 +109,7 @@ void ServoControl::parseCanTxFrame(CanFrame &frame, int id)
         frame.data[7] = 0xAA;
         break;
     case PositionVelocityLoop:
-
+        //NetworkManager::getInstance().sendSystemLog("[SERVO_CTRL] position: " + String(servo->position) + " speed " + String(speed16) + " acc " + String(servo->acceleration));
         frame.data[0] = (servo->position >> 24) & 0xFF;
         frame.data[1] = (servo->position >> 16) & 0xFF;
         frame.data[2] = (servo->position >> 8) & 0xFF;
@@ -142,7 +146,7 @@ void ServoControl::parseCanTxFrame(CanFrame &frame, int id)
     // Logowanie do aplikacji
     if (onCanFrame)
     {
-        onCanFrame(frame, true);
+        onCanFrame(frame, false);
     };
 };
 
@@ -185,7 +189,7 @@ void ServoControl::parseCanRxFrame(const CanFrame &frame)
 
     if (onCanFrame)
     {
-        onCanFrame(frame, false);
+        onCanFrame(frame, true);
     };
 };
 

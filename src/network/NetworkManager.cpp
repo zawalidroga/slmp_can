@@ -59,7 +59,7 @@ void NetworkManager::ethEvent(arduino_event_id_t event, arduino_event_info_t inf
 
         // START TCP/UDP ASYNC
         NetworkManager::getInstance().TCPserver.start(5020);
-        NetworkManager::getInstance().udp.start(5005);
+        NetworkManager::getInstance().udp.start(5055);
         break;
 
     case ARDUINO_EVENT_ETH_DISCONNECTED:
@@ -94,6 +94,6 @@ void NetworkManager::loop() {};
 
 void NetworkManager::sendSystemLog(String msg)
 {
-    String jsonLog = "{\"type\":\"system_log\",\"data\":\"" + msg + "\"}";
+    String jsonLog = "{\"type\":\"system_log\",\"data\":\"" + msg + "\"}\n";
     TCPserver.sendToAll(jsonLog);
 };

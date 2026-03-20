@@ -51,7 +51,7 @@ void setup()
     tcpManager.onClientData = [](uint8_t *data, size_t size, AsyncClient *client)
     {
         desktopCommManager.dataParser(data, size, client);
-        //networkManager.sendSystemLog("[onClientData] cośtam się wysyła");
+        // networkManager.sendSystemLog("[onClientData] cośtam się wysyła");
     };
 
     tcpManager.onClientConnect = [](AsyncClient *client)
@@ -107,6 +107,7 @@ void loop()
 
     if (millis() - lastServoConnectionCheck > SERVO_CONNECTION_CKECK_INTERVAL)
     {
+        ;
         lastServoConnectionCheck = millis();
         servos.checkServoConnection();
     }
@@ -116,6 +117,7 @@ void loop()
         lastStatusUpdate = millis();
         if (networkManager.isConnected())
         {
+
             desktopCommManager.sendBroadcastStatus();
         }
     }

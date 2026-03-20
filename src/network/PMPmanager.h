@@ -13,7 +13,7 @@
 #define PMP_SUBCMD_WRITE_GO 0x02 // wywołanie ruchu z nastawą kierunek - JOG, pozycja - jazda na pozycje, natężęnie - jazda do natężęie
 
 // Kody subkomend odczytu
-#define PMP_SUBCMD_READ_STATUS 0x00 // wywołanie ruchu z nastawą kierunek - JOG, pozycja - jazda na pozycje, natężęnie - jazda do natężęie
+#define PMP_SUBCMD_READ_STATUS 0x00 // odczyt statusów
 
 // Kody błędów PSMP
 #define PMP_ERR_NONE 0x00
@@ -29,6 +29,17 @@
 
 #include <functional>
 #include "../can/ServoControl.h"
+
+struct ServoCommandBlock
+{
+    uint8_t id;            // ID serwa
+    uint8_t dummy;         //
+    uint8_t subcmd;        // np. PMP_SUBCMD_WRITE_GO
+    uint8_t cmd;           // np. PMP_CMD_DEVICE_WRITE
+    int32_t position;      // 4 bajty - dodatkowo informacje o modzie itp
+    int16_t speed;         // 2 bajty
+    int16_t acceleration;  // 2 bajty
+} __attribute__((packed)); // Razem 11 bajtów na serwo
 
 class PMPmanager
 {
