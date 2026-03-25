@@ -4,6 +4,18 @@
 #include <Arduino.h>
 #include <Preferences.h>
 
+enum class HomingState : uint8_t
+{
+    IDLE = 0,
+    START_HOMING,
+    MOVING_TO_SENSOR,
+    SENSOR_EXIT,
+    SET_ZERO,
+    SETTING_ZERO,
+    COMPLETED,
+    TIMEOUT_ERROR
+};
+
 class ServoDevice
 {
 private:
@@ -17,11 +29,14 @@ private:
     int8_t _actualTemperature = 0;
     int16_t _speed16 = (int16_t)speed;
     uint16_t _status;
+    uint8_t _errorCode = 0;
     unsigned long _lastSeen = 0;
+    unsigned long _startHomingTime;
+    unsigned long _lastCommandtime = 0;
 
     uint32_t _targetPosition = 0;
     uint16_t _inPositionOffset = 1000; // domyślna wartość
-    uint16_t _busyOffset = 1000;
+    uint16_t _busyOffset = 100;
 
 public:
     enum class ServoStatusFlags : uint16_t
@@ -35,7 +50,7 @@ public:
         POSITIONING_COMPLETED = (1 << 5),
         BUSY = (1 << 6),             // od prędkości rzeczywistej
         BUSY_POSITIONING = (1 << 7), // od intencji ruchu - zadania target position
-        EMPTY_2 = (1 << 8),
+        HPR_BUSY = (1 << 8),
         EMPTY_3 = (1 << 9),
         EMPTY_4 = (1 << 10),
         EMPTY_5 = (1 << 11),
@@ -78,12 +93,17 @@ public:
     int16_t acceleration = 0; // wartości od 0 do 32767 co reprezentuje 0 do 32767 *10 elec RPM/s2
     int16_t factorKP = 0;
     int16_t factorKD = 0;
+    int32_t homingSpeed = 1000;
+    int32_t homingTimeout = 15000; // ms
 
     bool servoInPosition = true;
     bool isOn = false;
-    bool isHoming = false;
 
-    void makeItHome();
+    bool isHomingReverse = true;
+    HomingState homingStep = HomingState::IDLE;
+    bool isHomingSensorExitReverse = false;
+
+    void makeItHome(bool sensorActive);
 
     void servoActualState();
     void readPrivateServoState();
@@ -109,10 +129,12 @@ public:
 
     void updateInPositionStatus();
     void updateBusyStatus();
-    void updateBusyPositioningStatus();
+    void updateServoStatus();
 
     void updateLastSeen();
     unsigned long getLastSeen() const;
+    void updateLastCommandTime() { _lastCommandtime = millis(); };
+    bool isCommandTimeout(unsigned long timeoutMs);
 
     void saveState(Preferences &prefs);
     void loadState(Preferences &prefs);

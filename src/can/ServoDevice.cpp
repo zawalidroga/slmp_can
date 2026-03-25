@@ -1,9 +1,10 @@
 #include "ServoDevice.h"
+#include "../network/NetworkManager.h"
 
 void ServoDevice::setServoMode(int8_t mode)
 {
 
-    if (7 >= _servoMode >= 0)
+    if (mode >= 0 && mode <= 7)
     {
         _servoMode = mode;
         if (onStateChanged)
@@ -105,18 +106,28 @@ void ServoDevice::updateBusyStatus()
     if (abs((int)_actualSpeed) > _busyOffset)
     {
         setStatus(ServoStatusFlags::BUSY);
+        if (_servoMode == 6)
+        {
+            setStatus(ServoStatusFlags::BUSY_POSITIONING);
+        }
     }
     else
     {
-        setStatus(ServoStatusFlags::BUSY);
+        clearStatus(ServoStatusFlags::BUSY);
+        clearStatus(ServoStatusFlags::BUSY_POSITIONING);
     };
 };
+
+void ServoDevice::updateServoStatus()
+{
+}
 
 // ##############################################################
 
 // ##################### servo monitory i settery #######################
 void ServoDevice::setServoMonitor(RealParameter param, int16_t value)
 {
+
     switch (param)
     {
     case RealParameter::SERVO_ID:
@@ -237,7 +248,89 @@ void ServoDevice::updateLastSeen()
 unsigned long ServoDevice::getLastSeen() const
 {
     return _lastSeen;
-}
+};
+
+bool ServoDevice::isCommandTimeout(unsigned long timeoutMs)
+{
+    if (_lastCommandtime == 0 || !isStatusSet(ServoStatusFlags::ENABLED))
+        return false;
+    return (millis() - _lastCommandtime > timeoutMs);
+};
+
+// ######################## BAZOWANIE ########################
+
+void ServoDevice::makeItHome(bool sensorAcitve)
+{
+
+    switch (homingStep)
+    {
+    case HomingState::IDLE:
+        break;
+    case HomingState::START_HOMING:
+        NetworkManager::getInstance().sendSystemLog("[SERVO] START HOMING");
+        _startHomingTime = millis();
+        this->setStatus(ServoDevice::ServoStatusFlags::HPR_BUSY);
+        this->setServoMode(3); // Veloxity loop
+        this->speed = isHomingReverse ? -this->homingSpeed : this->homingSpeed;
+        homingStep = HomingState::MOVING_TO_SENSOR;
+        break;
+
+    case HomingState::MOVING_TO_SENSOR:
+
+        if (sensorAcitve)
+        {
+            this->speed = 0;
+            homingStep = HomingState::SENSOR_EXIT;
+            NetworkManager::getInstance().sendSystemLog("[SERVO] SENSOR FOUND");
+        }
+        else if (millis() - _startHomingTime > homingTimeout)
+        {
+            homingStep = HomingState::TIMEOUT_ERROR;
+        }
+        break;
+    case HomingState::SENSOR_EXIT:
+
+        if (sensorAcitve)
+        {
+            this->speed = isHomingReverse ? 500 : -500;
+        }
+        else
+        {
+            NetworkManager::getInstance().sendSystemLog("[SERVO] SENSOR EXIT");
+            this->speed = 0;
+            homingStep = HomingState::SET_ZERO;
+        }
+        break;
+    case HomingState::SET_ZERO:
+        this->setServoMode(5);
+        homingStep = HomingState::SETTING_ZERO;
+        NetworkManager::getInstance().sendSystemLog("[SERVO] SETTING ZERO");
+        break;
+
+    case HomingState::SETTING_ZERO:
+
+        if (this->_actualPosition == 0)
+        {
+            NetworkManager::getInstance().sendSystemLog("[SERVO] POSITION SET TO 0");
+            setStatus(ServoStatusFlags::HPR_COMPLETED);
+            clearStatus(ServoStatusFlags::HPR_REQUEST);
+            homingStep = HomingState::COMPLETED;
+        }
+        break;
+    case HomingState::COMPLETED:
+        NetworkManager::getInstance().sendSystemLog("[SERVO] HOMING COMPLETED");
+        this->position = this->getParameters(ServoDevice::RealParameter::POSITION) * 10000;
+        this->setServoMode(6);
+        homingStep = HomingState::IDLE;
+        this->clearStatus(ServoDevice::ServoStatusFlags::HPR_BUSY);
+        break;
+    case HomingState::TIMEOUT_ERROR:
+        setStatus(ServoStatusFlags::ERROR);
+        this->_errorCode = 1;
+
+        break;
+    };
+};
 
 // ######################## FUNKCJE POMOCNICZE ########################
 

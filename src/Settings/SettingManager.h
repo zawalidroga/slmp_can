@@ -14,7 +14,7 @@ private:
     IPAddress _secondaryDNS = IPAddress(8, 8, 4, 4);
     uint16_t _portTCP = 5020;
     uint16_t _portUDP = 5005;
-
+    bool _autoHoming = true;
     SettingMenager();
 
     Preferences _preferences;
@@ -33,6 +33,7 @@ public:
     void setSecondaryDNS(IPAddress dns);
     void setTCPPort(uint8_t port);
     void setUDPPort(uint8_t port);
+    void setAutoHoming(bool enabled) { _autoHoming = enabled; }
 
     IPAddress getIPAddress();
     IPAddress getGateway();
@@ -41,6 +42,7 @@ public:
     IPAddress getSecondaryDNS();
     uint16_t getUDPPort();
     uint16_t getTCPPort();
+    bool getAutoHoming() { return _autoHoming; }
 };
 
 #endif

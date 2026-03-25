@@ -10,7 +10,8 @@
 #define PMP_SUBCMD_WRITE_MODE 0x00  // wybór trybu działania serwa
 #define PMP_SUBCMD_WRITE_PARAM 0x01 // Zapisanie parametrów podstawowych starszy bit określa jaki parametr zapisujemy
 
-#define PMP_SUBCMD_WRITE_GO 0x02 // wywołanie ruchu z nastawą kierunek - JOG, pozycja - jazda na pozycje, natężęnie - jazda do natężęie
+#define PMP_SUBCMD_WRITE_GO 0x02     // wywołanie ruchu z nastawą kierunek - JOG, pozycja - jazda na pozycje, natężęnie - jazda do natężęie
+#define PMP_SUBCMD_WRITE_HOMING 0x03 //
 
 // Kody subkomend odczytu
 #define PMP_SUBCMD_READ_STATUS 0x00 // odczyt statusów
@@ -22,10 +23,14 @@
 #define PMP_ERR_INVALID_DATA 0x03
 #define PMP_ERR_OUT_OF_RANGE 0x04
 #define PSMP_ERR_INVALID_POSITIONING_MODE 0x05
+#define PMP_ERR_HOMING_TIMEOUT 0x06
 
 // Stałe nałówka
 #define HEADER_PMP 0x2137
 // #define SUBHEADER_RES 0xD000
+
+//inne stałe
+#define TIMEOUT_PMP_CONNECTION 10000
 
 #include <functional>
 #include "../can/ServoControl.h"
@@ -58,9 +63,14 @@ private:
 
     uint16_t _calculate_crc16(const uint8_t *data, size_t length);
 
+    unsigned long _lastPacketTime = 0;
+
 public:
     PMPmanager(ServoControl &sm);
     void frameHandler(uint8_t *data, size_t packetSize, IPAddress remoteIp, uint16_t remotePort);
+
+    bool isTimeout();
+    void resetTimeout() { _lastPacketTime = millis(); };
 
     std::function<void(uint8_t *, size_t, IPAddress, uint16_t)> sendReply;
     std::function<void(const String msg, bool isRx)> onPMPframe;

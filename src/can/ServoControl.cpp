@@ -2,6 +2,7 @@
 #include <vector>
 #include "../network/DesktopCommManager.h"
 #include "../network/NetworkManager.h"
+#include "../Settings/SettingManager.h"
 
 ServoControl::ServoControl(CanManager &can)
     : _can(can)
@@ -25,6 +26,17 @@ ServoControl::ServoControl(CanManager &can)
 void ServoControl::begin()
 {
     _loadServoList();
+
+    if (SettingMenager::getInstance().getAutoHoming())
+    {
+        for (auto &[id, servo] : servos)
+        {
+            // servo.homingStep = HomingState::START_HOMING;
+            servo.setStatus(ServoDevice::ServoStatusFlags::HPR_REQUEST);
+            servo.clearStatus(ServoDevice::ServoStatusFlags::HPR_COMPLETED);
+            // servo.clearStatus(ServoDevice::ServoStatusFlags::READY_ON);
+        }
+    }
 };
 
 void ServoControl::parseCanTxFrame(CanFrame &frame, int id)
@@ -39,14 +51,13 @@ void ServoControl::parseCanTxFrame(CanFrame &frame, int id)
         return;
     };
 
-
-    if (!servo->isStatusSet(ServoDevice::ServoStatusFlags::ONLINE))
+    if (!servo->isStatusSet(ServoDevice::ServoStatusFlags::ONLINE) || !servo->isStatusSet(ServoDevice::ServoStatusFlags::ENABLED))
     {
-        frame.identifier = (0 << 8) | (id & 0xFF);
-        frame.extd = 1;
-        frame.data_length_code = 8;
-        for (int i = 0; i < 8; i++)
-            frame.data[i] = 0x00;
+        // frame.identifier = (0 << 8) | (id & 0xFF);
+        // frame.extd = 1;
+        // frame.data_length_code = 8;
+        // for (int i = 0; i < 8; i++)
+        //     frame.data[i] = 0x00;
         return;
     }
 
@@ -109,7 +120,7 @@ void ServoControl::parseCanTxFrame(CanFrame &frame, int id)
         frame.data[7] = 0xAA;
         break;
     case PositionVelocityLoop:
-        //NetworkManager::getInstance().sendSystemLog("[SERVO_CTRL] position: " + String(servo->position) + " speed " + String(speed16) + " acc " + String(servo->acceleration));
+        // NetworkManager::getInstance().sendSystemLog("[SERVO_CTRL] position: " + String(servo->position) + " speed " + String(speed16) + " acc " + String(servo->acceleration));
         frame.data[0] = (servo->position >> 24) & 0xFF;
         frame.data[1] = (servo->position >> 16) & 0xFF;
         frame.data[2] = (servo->position >> 8) & 0xFF;
@@ -186,6 +197,7 @@ void ServoControl::parseCanRxFrame(const CanFrame &frame)
     // Update statusów
     servo->updateInPositionStatus();
     servo->updateBusyStatus();
+    servo->updateServoStatus();
 
     if (onCanFrame)
     {

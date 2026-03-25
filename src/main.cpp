@@ -27,6 +27,7 @@ void servoMonitorTask() {};
 void setup()
 {
     Serial.begin(115200);
+    pinMode(36, INPUT);
     SettingMenager::getInstance().begin();
     canManager.begin();
     networkManager.begin();
@@ -120,5 +121,35 @@ void loop()
 
             desktopCommManager.sendBroadcastStatus();
         }
+    };
+
+    for (auto const &[id, servo] : servos.getServosMap())
+    {
+        bool sensor = digitalRead(36) == HIGH;
+        ServoDevice *s = servos.getServo(id);
+        if (s->isCommandTimeout(5000))
+        {
+            s->clearStatus(ServoDevice::ServoStatusFlags::ENABLED);
+            s->setServoMode(99);
+            NetworkManager::getInstance().sendSystemLog("[MAIN] Timeout komunikacji Serva! Serwa wyłączone. ID: " + String(id));
+        }
+        if (s)
+        {
+            s->makeItHome(sensor);
+        };
+    }
+
+    if (pmpManager.isTimeout())
+    {
+        for (auto const &[id, servo] : servos.getServosMap())
+        {
+            ServoDevice *s = servos.getServo(id);
+            if (s && s->isStatusSet(ServoDevice::ServoStatusFlags::ENABLED))
+            {
+                s->clearStatus(ServoDevice::ServoStatusFlags::ENABLED);
+                s->setServoMode(99);
+            };
+        }
+        NetworkManager::getInstance().sendSystemLog("[MAIN] Timeout komunikacji UDP! Serwa wyłączone");
     }
 };

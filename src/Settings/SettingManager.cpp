@@ -39,6 +39,7 @@ void SettingMenager::begin()
         _secondaryDNS.fromString(secondaryStr);
         _portTCP = _preferences.getUShort("port_tcp", _portTCP);
         _portUDP = _preferences.getUShort("port_udp", _portUDP);
+        _autoHoming = _preferences.getBool("auto_homing", true);
 
         Serial.println("[INFO][Settings] Ustawienia wczytane");
     }
@@ -60,6 +61,7 @@ void SettingMenager::save()
         _preferences.putString("dns_s", _secondaryDNS.toString());
         _preferences.putUShort("port_tcp", _portTCP);
         _preferences.putUShort("port_udp", _portUDP);
+        _preferences.putBool("auto_homing", _autoHoming);
 
         Serial.println("[INFO][Settings] Ustawienia zapisane do pamięci flash");
     };

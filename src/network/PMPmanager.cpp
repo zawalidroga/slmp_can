@@ -6,7 +6,7 @@ PMPmanager::PMPmanager(ServoControl &sm) : _servoManager(sm) {};
 
 void PMPmanager::frameHandler(uint8_t *data, size_t packetSize, IPAddress remoteIp, uint16_t remotePort)
 {
-
+    _lastPacketTime = millis();
     memcpy(_reqBuffer, data, packetSize);
 
     if (onPMPframe)
@@ -51,6 +51,7 @@ void PMPmanager::frameHandler(uint8_t *data, size_t packetSize, IPAddress remote
     for (size_t i = 0; i < servosNo; i++)
     {
         ServoDevice *servo = _servoManager.getServo(currentBlock->id);
+        servo->updateLastCommandTime();
         if (currentBlock->cmd != PMP_CMD_DEVICE_READ)
         {
             if (servo == nullptr)
@@ -63,7 +64,7 @@ void PMPmanager::frameHandler(uint8_t *data, size_t packetSize, IPAddress remote
                 return;
             };
         };
-        NetworkManager::getInstance().sendSystemLog("[PMP] ID: " + String(currentBlock->id) + " komenda: " + String(currentBlock->cmd) + " subkomenda: " + String(currentBlock->subcmd));
+        // NetworkManager::getInstance().sendSystemLog("[PMP] ID: " + String(currentBlock->id) + " komenda: " + String(currentBlock->cmd) + " subkomenda: " + String(currentBlock->subcmd));
         switch (currentBlock->cmd)
         {
         case PMP_CMD_DEVICE_READ:
@@ -112,11 +113,7 @@ void PMPmanager::frameHandler(uint8_t *data, size_t packetSize, IPAddress remote
                         servo->setServoMode(6);
                     }
                     break;
-                case 2: // tryb bazowania
-                    servo->setStatus(ServoDevice::ServoStatusFlags::HPR_REQUEST);
-                    servo->clearStatus(ServoDevice::ServoStatusFlags::HPR_COMPLETED);
-                    servo->makeItHome();
-                    break;
+
                 default:
                     // Serial.println("[ERR 05][PMP] Błędny tryb pozycjonowania!");
                     endCode = PSMP_ERR_INVALID_POSITIONING_MODE;
@@ -126,6 +123,14 @@ void PMPmanager::frameHandler(uint8_t *data, size_t packetSize, IPAddress remote
 
                 break;
             };
+            case PMP_SUBCMD_WRITE_HOMING:
+                if (servo->homingStep == HomingState::IDLE)
+                {
+                    servo->setStatus(ServoDevice::ServoStatusFlags::HPR_BUSY);
+                    servo->clearStatus(ServoDevice::ServoStatusFlags::HPR_COMPLETED);
+                    servo->homingStep = HomingState::START_HOMING;
+                }
+                break;
             case PMP_SUBCMD_WRITE_MODE:
             {
                 uint8_t mode = currentBlock->position;
@@ -150,15 +155,17 @@ void PMPmanager::frameHandler(uint8_t *data, size_t packetSize, IPAddress remote
         }
         case PMP_CMD_DEVICE_ONOFF:
 
-            if (currentBlock->subcmd == 1 && !servo->isStatusSet(ServoDevice::ServoStatusFlags::ENABLED))
+            if (currentBlock->subcmd == 1)
             {
-
-                servo->setStatus(ServoDevice::ServoStatusFlags::ENABLED);
-                servo->setServoMode(6);
-                // uint16_t actualPosition = servo->getParameters(ServoDevice::RealParameter::POSITION) * 10000;
-                servo->position = servo->getParameters(ServoDevice::RealParameter::POSITION) * 10000;
+                if (!servo->isStatusSet(ServoDevice::ServoStatusFlags::ENABLED))
+                {
+                    servo->setStatus(ServoDevice::ServoStatusFlags::ENABLED);
+                    servo->setServoMode(6);
+                    // uint16_t actualPosition = servo->getParameters(ServoDevice::RealParameter::POSITION) * 10000;
+                    servo->position = servo->getParameters(ServoDevice::RealParameter::POSITION) * 1000;
+                }
             }
-            else if (currentBlock->subcmd != 1 && !servo->isStatusSet(ServoDevice::ServoStatusFlags::ENABLED))
+            else
             {
                 servo->clearStatus(ServoDevice::ServoStatusFlags::ENABLED);
                 servo->setServoMode(99);
@@ -273,3 +280,12 @@ uint16_t PMPmanager::_calculate_crc16(const uint8_t *data, size_t length)
     };
     return crc;
 };
+
+// ################ TIMEOUT ################
+bool PMPmanager::isTimeout()
+{
+    // NetworkManager::getInstance().sendSystemLog("[PMP] last packet time: " + String(_lastPacketTime));
+    if (_lastPacketTime == 0)
+        return false;
+    return (millis() - _lastPacketTime > TIMEOUT_PMP_CONNECTION);
+}
