@@ -93,8 +93,9 @@ void PMPmanager::frameHandler(uint8_t *data, size_t packetSize, IPAddress remote
                 {
                 case 0: // tryb jezdy na pozycje
                 {
-                    NetworkManager::getInstance().sendSystemLog("[PMP] JAZDA!! pozycja: " + String(currentBlock->position) + " predkosc: " + String(currentBlock->speed) + " przyspieszenie: " + String(currentBlock->acceleration));
+                    // NetworkManager::getInstance().sendSystemLog("[PMP] JAZDA!! pozycja: " + String(currentBlock->position)); // Zakomentowane, aby nie zatykać TCP
                     // uint32_t val = (*reqPayloadPtr << 0) | (*(reqPayloadPtr + 1) << 8) | (*(reqPayloadPtr + 2) << 16) | *(reqPayloadPtr + 3) << 24;
+                    servo->setServoMode(6);
                     servo->position = currentBlock->position;
                     servo->speed = currentBlock->speed;
                     servo->acceleration = currentBlock->acceleration;
@@ -123,6 +124,11 @@ void PMPmanager::frameHandler(uint8_t *data, size_t packetSize, IPAddress remote
 
                 break;
             };
+            case PMP_SUBCMD_WRITE_GO_MAX:
+                servo->setServoMode(4);
+                servo->position = currentBlock->position;
+                break;
+
             case PMP_SUBCMD_WRITE_HOMING:
                 if (servo->homingStep == HomingState::IDLE)
                 {
@@ -131,6 +137,7 @@ void PMPmanager::frameHandler(uint8_t *data, size_t packetSize, IPAddress remote
                     servo->homingStep = HomingState::START_HOMING;
                 }
                 break;
+
             case PMP_SUBCMD_WRITE_MODE:
             {
                 uint8_t mode = currentBlock->position;
@@ -160,7 +167,14 @@ void PMPmanager::frameHandler(uint8_t *data, size_t packetSize, IPAddress remote
                 if (!servo->isStatusSet(ServoDevice::ServoStatusFlags::ENABLED))
                 {
                     servo->setStatus(ServoDevice::ServoStatusFlags::ENABLED);
-                    servo->setServoMode(6);
+                    if (currentBlock->position == 0)
+                    {
+                        servo->setServoMode(6);
+                    }
+                    else if (currentBlock->position == 1)
+                    {
+                        servo->setServoMode(4);
+                    }
                     // uint16_t actualPosition = servo->getParameters(ServoDevice::RealParameter::POSITION) * 10000;
                     servo->position = servo->getParameters(ServoDevice::RealParameter::POSITION) * 1000;
                 }

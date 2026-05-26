@@ -12,6 +12,7 @@
 
 #define PMP_SUBCMD_WRITE_GO 0x02     // wywołanie ruchu z nastawą kierunek - JOG, pozycja - jazda na pozycje, natężęnie - jazda do natężęie
 #define PMP_SUBCMD_WRITE_HOMING 0x03 //
+#define PMP_SUBCMD_WRITE_GO_MAX 0x04 //wywołanie ruchu w position loop dla maksymalnyej szybkości i przyśpieszenia
 
 // Kody subkomend odczytu
 #define PMP_SUBCMD_READ_STATUS 0x00 // odczyt statusów

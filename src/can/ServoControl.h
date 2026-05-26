@@ -1,7 +1,7 @@
 #ifndef SERVO_CONTROL_H
 #define SERVO_CONTROL_H
 
-#define SERVO_TIMEOUT_MS 3000 // 3 sekundy
+#define SERVO_TIMEOUT_MS 5000 // 3 sekundy
 
 #include <Arduino.h>
 #include <map>
@@ -47,7 +47,7 @@ public:
     ServoDevice *getServo(int8_t id);
     const std::map<uint8_t, ServoDevice> &getServosMap() { return servos; }
     void parseCanRxFrame(const CanFrame &frame);
-    void parseCanTxFrame(CanFrame &frame, int id);
+    bool parseCanTxFrame(CanFrame &frame, int id);
     void parsePMPFrameRx(int frame);
     void parsePMPFrameTx(int frame);
 

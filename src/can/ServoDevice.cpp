@@ -85,19 +85,27 @@ bool ServoDevice::isStatusSet(ServoStatusFlags flags) const
 
 void ServoDevice::updateInPositionStatus()
 {
-    if (abs((int)_targetPosition - (int)_actualPosition) <= _inPositionOffset)
+
+    if (abs((int)position / 1000.0f - (int)_actualPosition) <= _inPositionOffset)
     {
+
         if (!isStatusSet(ServoStatusFlags::IN_POSITION))
         {
             setStatus(ServoStatusFlags::IN_POSITION);
             setStatus(ServoStatusFlags::POSITIONING_COMPLETED);
             clearStatus(ServoStatusFlags::BUSY_POSITIONING);
+            // NetworkManager::getInstance().sendSystemLog("[Servo_dev] in position");
         }
     }
     else
     {
-        clearStatus(ServoStatusFlags::IN_POSITION);
-        clearStatus(ServoStatusFlags::POSITIONING_COMPLETED);
+
+        if (isStatusSet(ServoStatusFlags::IN_POSITION))
+        {
+            // NetworkManager::getInstance().sendSystemLog("[Servo_dev] busy positioning");
+            clearStatus(ServoStatusFlags::IN_POSITION);
+            clearStatus(ServoStatusFlags::POSITIONING_COMPLETED);
+        }
     }
 };
 
@@ -105,16 +113,24 @@ void ServoDevice::updateBusyStatus()
 {
     if (abs((int)_actualSpeed) > _busyOffset)
     {
+        // Jeśli prędkość jest powyżej progu, serwo jest zajęte.
         setStatus(ServoStatusFlags::BUSY);
         if (_servoMode == 6)
         {
             setStatus(ServoStatusFlags::BUSY_POSITIONING);
         }
+        // Zapisujemy czas, kiedy ostatni raz widzieliśmy serwo w ruchu.
+        _lastBusyTime = millis();
     }
     else
     {
-        clearStatus(ServoStatusFlags::BUSY);
-        clearStatus(ServoStatusFlags::BUSY_POSITIONING);
+        // Jeśli prędkość spadła, nie gasimy flagi od razu.
+        // Czekamy 100ms, aby upewnić się, że serwo naprawdę się zatrzymało.
+        if (millis() - _lastBusyTime > 50)
+        {
+            clearStatus(ServoStatusFlags::BUSY);
+            clearStatus(ServoStatusFlags::BUSY_POSITIONING);
+        }
     };
 };
 
@@ -254,6 +270,14 @@ bool ServoDevice::isCommandTimeout(unsigned long timeoutMs)
 {
     if (_lastCommandtime == 0 || !isStatusSet(ServoStatusFlags::ENABLED))
         return false;
+
+    // Ignoruj timeout, jeśli serwo wykonuje autonomiczną sekwencję bazowania
+    if (homingStep != HomingState::IDLE)
+    {
+        _lastCommandtime = millis(); // Odśwież czas, by po bazowaniu nie wywaliło błędu od razu
+        return false;
+    }
+
     return (millis() - _lastCommandtime > timeoutMs);
 };
 
@@ -261,13 +285,16 @@ bool ServoDevice::isCommandTimeout(unsigned long timeoutMs)
 
 void ServoDevice::makeItHome(bool sensorAcitve)
 {
+    String servoIdStr = String(this->_id);
+    String txt = "[Servo" + servoIdStr;
+    String txtFin = txt + "] ";
 
     switch (homingStep)
     {
     case HomingState::IDLE:
         break;
     case HomingState::START_HOMING:
-        NetworkManager::getInstance().sendSystemLog("[SERVO] START HOMING");
+        NetworkManager::getInstance().sendSystemLog(txtFin + "START HOMING " + isHomingReverse);
         _startHomingTime = millis();
         this->setStatus(ServoDevice::ServoStatusFlags::HPR_BUSY);
         this->setServoMode(3); // Veloxity loop
@@ -280,14 +307,25 @@ void ServoDevice::makeItHome(bool sensorAcitve)
         if (sensorAcitve)
         {
             this->speed = 0;
-            homingStep = HomingState::SENSOR_EXIT;
-            NetworkManager::getInstance().sendSystemLog("[SERVO] SENSOR FOUND");
+            _startHomingTime = millis();
+            homingStep = HomingState::STOPPING_ON_SENSOR;
+            NetworkManager::getInstance().sendSystemLog(txtFin + "SENSOR FOUND ");
         }
         else if (millis() - _startHomingTime > homingTimeout)
         {
             homingStep = HomingState::TIMEOUT_ERROR;
+            NetworkManager::getInstance().sendSystemLog(txtFin + "HOMING ERROR");
         }
         break;
+
+    case HomingState::STOPPING_ON_SENSOR:
+        // Dajemy 100ms na: (1) wysłanie ramki CAN z prędkością 0, (2) fizyczne zahamowanie, (3) ustanie drgań styków
+        if (millis() - _startHomingTime > 100)
+        {
+            homingStep = HomingState::SENSOR_EXIT;
+        }
+        break;
+
     case HomingState::SENSOR_EXIT:
 
         if (sensorAcitve)
@@ -296,36 +334,56 @@ void ServoDevice::makeItHome(bool sensorAcitve)
         }
         else
         {
-            NetworkManager::getInstance().sendSystemLog("[SERVO] SENSOR EXIT");
+            NetworkManager::getInstance().sendSystemLog(txtFin + "SENSOR EXIT");
             this->speed = 0;
+            _startHomingTime = millis();
+            homingStep = HomingState::STOPPING_OFF_SENSOR;
+        }
+        break;
+
+    case HomingState::STOPPING_OFF_SENSOR:
+        // Odczekanie 100ms, aby serwo w pełni się zatrzymało przed procedurą zerowania pozycjonerów
+        if (millis() - _startHomingTime > 100)
+        {
             homingStep = HomingState::SET_ZERO;
         }
         break;
+
     case HomingState::SET_ZERO:
+        _startHomingTime = millis();
         this->setServoMode(5);
         homingStep = HomingState::SETTING_ZERO;
-        NetworkManager::getInstance().sendSystemLog("[SERVO] SETTING ZERO");
+        NetworkManager::getInstance().sendSystemLog(txtFin + "SETTING ZERO");
         break;
 
     case HomingState::SETTING_ZERO:
-
-        if (this->_actualPosition == 0)
+        if (millis() - _startHomingTime > 100 && this->getServoMode() == 5)
         {
-            NetworkManager::getInstance().sendSystemLog("[SERVO] POSITION SET TO 0");
+            this->setServoMode(3);
+            this->position = 0;
+            this->speed = 0;
+        }
+
+        if (this->_actualPosition <= 1 && this->getServoMode() == 3)
+        {
+            NetworkManager::getInstance().sendSystemLog(txtFin + "POSITION SET TO 0");
             setStatus(ServoStatusFlags::HPR_COMPLETED);
             clearStatus(ServoStatusFlags::HPR_REQUEST);
             homingStep = HomingState::COMPLETED;
         }
         break;
     case HomingState::COMPLETED:
-        NetworkManager::getInstance().sendSystemLog("[SERVO] HOMING COMPLETED");
-        this->position = this->getParameters(ServoDevice::RealParameter::POSITION) * 10000;
-        this->setServoMode(6);
+        NetworkManager::getInstance().sendSystemLog(txtFin + "HOMING COMPLETED");
+        // this->position = this->getParameters(ServoDevice::RealParameter::POSITION) * 10000;
+        // this->setServoMode(6);
         homingStep = HomingState::IDLE;
         this->clearStatus(ServoDevice::ServoStatusFlags::HPR_BUSY);
         break;
     case HomingState::TIMEOUT_ERROR:
         setStatus(ServoStatusFlags::ERROR);
+        this->setServoMode(3);
+        this->position = 0;
+        this->speed = 0;
         this->_errorCode = 1;
 
         break;

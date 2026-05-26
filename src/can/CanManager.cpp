@@ -12,6 +12,10 @@ void CanManager::begin()
 
     _fConfig.acceptance_code = 0x00002800;
     _fConfig.acceptance_mask = 0xffffffff; // trzeba zmienić
+    // Ustawienie filtra tak, aby akceptował wszystkie ramki CAN.
+    // Jest to najlepsze rozwiązanie na etapie deweloperskim.
+    _fConfig.acceptance_code = 0;
+    _fConfig.acceptance_mask = 0;
     _fConfig.single_filter = true;
 
     if (!ESP32Can.begin())
@@ -24,12 +28,7 @@ void CanManager::begin()
         }
     };
 
-    twai_start();
-
-    // if (_canSendQueue == NULL)
-    // {
-    //     Serial.println("FATAL: Nie udało się utworzyć kolejki CAN!");
-    // };
+    // twai_start(); // Ta linia jest prawdopodobnie zbędna, ESP32Can.begin() powinno już to robić.
 
     xTaskCreatePinnedToCore(
         CanManager::_canSendTask,
@@ -54,12 +53,9 @@ void CanManager::begin()
 
 void CanManager::readFrame()
 {
-    //Serial.println("[CAN] odbiera");
+    // Serial.println("[CAN] odbiera");
     if (ESP32Can.readFrame(rxFrame, 1000))
     {
-
-       // NetworkManager::getInstance().sendSystemLog("[CAN] odczytuje");
-        //Serial.println("[CAN] odczytuje ramke");
         onReadFrame(rxFrame);
     };
 };
@@ -79,13 +75,19 @@ void CanManager::_canSendTask(void *pvParameters)
             {
                 for (uint8_t id : servoIDs)
                 {
-                    manager->onWriteFrame(manager->txFrame, id);
-                    ESP32Can.writeFrame(manager->txFrame);
-                    vTaskDelay(pdMS_TO_TICKS(5)); // robi mini delay żeby nie zapchać magistrali
+                    if (manager->onWriteFrame(manager->txFrame, id))
+                    {
+
+                        if (ESP32Can.writeFrame(manager->txFrame, pdMS_TO_TICKS(1)) != ESP_OK)
+                        {
+                            // Opcjonalnie: obsługa błędu, gdy kolejka TX jest pełna
+                        }
+                        // vTaskDelay(pdMS_TO_TICKS(1)); // Ten wewnętrzny delay nie jest konieczny, jeśli główna pętla ma wystarczające opóźnienie
+                    }
                 }
             }
         };
-        vTaskDelay(pdMS_TO_TICKS(5));
+        vTaskDelay(pdMS_TO_TICKS(10)); // Zwiększamy opóźnienie, aby zmniejszyć częstotliwość odpytywania i odciążyć system
     };
 };
 
@@ -95,26 +97,18 @@ void CanManager::_canReadTask(void *pvParameters)
     twai_status_info_t status_info;
     for (;;)
     {
-        // if (twai_clear_receive_queue() == ESP_OK)
-        // {
-        //     if (status_info.state == TWAI_STATE_BUS_OFF)
-        //     {
-        //         // NetworkManager::getInstance().sendSystemLog("[CAN] ESP OK");
-        //         Serial.println("[CAN] ESP down");
-        //     }
-        //     else if (status_info.state == TWAI_STATE_STOPPED)
-        //     {
-        //         // NetworkManager::getInstance().sendSystemLog("[CAN ERR] ESP STOPPED!!!");
-        //         Serial.println("[CAN] ESP stopped");
-        //     }
-        //     else if (status_info.state == TWAI_STATE_RUNNING)
-        //     {
-        //         // NetworkManager::getInstance().sendSystemLog("[CAN ERR] ESP RUNNING!!!");
-        //         Serial.println("[CAN] ESP running");
-        //     }
-        // }
-
-        manager->readFrame();
-        vTaskDelay(pdMS_TO_TICKS(10));
+        twai_get_status_info(&status_info);
+        if (status_info.state == TWAI_STATE_BUS_OFF)
+        {
+            NetworkManager::getInstance().sendSystemLog("[CAN] BUS OFF detected! Recovering...");
+            twai_initiate_recovery();
+            vTaskDelay(pdMS_TO_TICKS(100));
+            twai_start();
+        };
+        while (ESP32Can.readFrame(manager->rxFrame, 0))
+        {
+            manager->onReadFrame(manager->rxFrame);
+        }
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
 }

@@ -9,7 +9,9 @@ enum class HomingState : uint8_t
     IDLE = 0,
     START_HOMING,
     MOVING_TO_SENSOR,
+    STOPPING_ON_SENSOR,
     SENSOR_EXIT,
+    STOPPING_OFF_SENSOR,
     SET_ZERO,
     SETTING_ZERO,
     COMPLETED,
@@ -33,10 +35,11 @@ private:
     unsigned long _lastSeen = 0;
     unsigned long _startHomingTime;
     unsigned long _lastCommandtime = 0;
+    unsigned long _lastBusyTime = 0;
 
     uint32_t _targetPosition = 0;
-    uint16_t _inPositionOffset = 1000; // domyślna wartość
-    uint16_t _busyOffset = 100;
+    uint16_t _inPositionOffset = 10; // domyślna wartość
+    uint16_t _busyOffset = 50;       // Zwiększony próg, aby ignorować szumy prędkości
 
 public:
     enum class ServoStatusFlags : uint16_t
@@ -93,13 +96,13 @@ public:
     int16_t acceleration = 0; // wartości od 0 do 32767 co reprezentuje 0 do 32767 *10 elec RPM/s2
     int16_t factorKP = 0;
     int16_t factorKD = 0;
-    int32_t homingSpeed = 1000;
-    int32_t homingTimeout = 15000; // ms
+    int32_t homingSpeed = 100;
+    int32_t homingTimeout = 30000; // ms
 
     bool servoInPosition = true;
     bool isOn = false;
 
-    bool isHomingReverse = true;
+    bool isHomingReverse = false;
     HomingState homingStep = HomingState::IDLE;
     bool isHomingSensorExitReverse = false;
 

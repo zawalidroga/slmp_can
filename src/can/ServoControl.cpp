@@ -10,7 +10,7 @@ ServoControl::ServoControl(CanManager &can)
     can.onReadFrame = [this](const CanFrame &frame)
     { parseCanRxFrame(frame); }; // przekazanie ramki
     can.onWriteFrame = [this](CanFrame &frame, const int id)
-    { parseCanTxFrame(frame, id); }; // przekazanie ramki
+    { return parseCanTxFrame(frame, id); }; // przekazanie ramki
     can.deviceNo = [this]()
     { return servos.size(); }; // przekazanie liczby serw
     can.getOnlineServosIDs = [this]()
@@ -39,7 +39,7 @@ void ServoControl::begin()
     }
 };
 
-void ServoControl::parseCanTxFrame(CanFrame &frame, int id)
+bool ServoControl::parseCanTxFrame(CanFrame &frame, int id)
 {
     // NetworkManager::getInstance().sendSystemLog("[CAN] serva nie ma");
     ServoDevice *servo = getServo(id);
@@ -48,17 +48,17 @@ void ServoControl::parseCanTxFrame(CanFrame &frame, int id)
     {
         Serial.println("[ServoControl] Brak serwa o podanym ID");
         NetworkManager::getInstance().sendSystemLog("[SERVO_CTRL] No servo with ID" + String(id));
-        return;
+        return false;
     };
 
-    if (!servo->isStatusSet(ServoDevice::ServoStatusFlags::ONLINE) || !servo->isStatusSet(ServoDevice::ServoStatusFlags::ENABLED))
+    if (/*!servo->isStatusSet(ServoDevice::ServoStatusFlags::ONLINE) ||*/ !servo->isStatusSet(ServoDevice::ServoStatusFlags::ENABLED))
     {
         // frame.identifier = (0 << 8) | (id & 0xFF);
         // frame.extd = 1;
         // frame.data_length_code = 8;
         // for (int i = 0; i < 8; i++)
         //     frame.data[i] = 0x00;
-        return;
+        return false;
     }
 
     const int8_t mode = servo->getServoMode();
@@ -151,7 +151,7 @@ void ServoControl::parseCanTxFrame(CanFrame &frame, int id)
         frame.data[7] = 0xFF;
         break;
     default:
-        break;
+        return false;
     };
 
     // Logowanie do aplikacji
@@ -159,6 +159,7 @@ void ServoControl::parseCanTxFrame(CanFrame &frame, int id)
     {
         onCanFrame(frame, false);
     };
+    return true;
 };
 
 void ServoControl::parseCanRxFrame(const CanFrame &frame)
@@ -167,9 +168,9 @@ void ServoControl::parseCanRxFrame(const CanFrame &frame)
     const int id = frame.identifier & 0xFF;
     ServoDevice *servo = getServo(id);
     idRecieved = frame.identifier & 0xFF;
-    Serial.println(id);
     if (servo == nullptr)
     {
+        NetworkManager::getInstance().sendSystemLog("[SERVO_CTRL_RX] Brak serva o id: " + String(id));
         return;
     };
 

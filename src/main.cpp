@@ -7,6 +7,7 @@
 #include "./network/DesktopCommManager.h"
 #include "./can/ServoControl.h"
 #include "./Settings/SettingManager.h"
+#include "./gui/StatusLeds.h"
 
 #define SERVO_CONNECTION_CKECK_INTERVAL 3000 // 3s
 #define STATUS_UPDATE_INTERVAL 1000          // 3s
@@ -18,6 +19,7 @@ AsyncUdpManager &udpManager = networkManager.getUdpManager();
 AsyncTcpServer &tcpManager = networkManager.getTcpServer();
 PMPmanager pmpManager(servos);
 DesktopCommManager desktopCommManager(servos);
+StatusLEDs ledsManager;
 
 unsigned long lastServoConnectionCheck = 0;
 unsigned long lastStatusUpdate = 0;
@@ -28,7 +30,15 @@ void setup()
 {
     Serial.begin(115200);
     pinMode(36, INPUT);
+    pinMode(35, INPUT);
+    pinMode(39, INPUT);
+
+    // pinMode(14, OUTPUT); // czerwony
+    // pinMode(12, OUTPUT); // pomarańczowy
+    // pinMode(15, OUTPUT); // zielony
+
     SettingMenager::getInstance().begin();
+    ledsManager.begin();
     canManager.begin();
     networkManager.begin();
 
@@ -37,6 +47,7 @@ void setup()
     {
         delay(500);
         Serial.print(".");
+        ledsManager.rstHeartbeat();
     };
     Serial.println("\nEthernet connected!");
     Serial.print("IP address: ");
@@ -70,11 +81,14 @@ void setup()
         uint8_t *data = packet.data();
 
         pmpManager.frameHandler(data, packetSize, remoteIp, remotePort);
+        ledsManager.notifyPMPActivity();
     };
 
     servos.onCanFrame = [](const CanFrame &frame, bool isRx)
     {
-        desktopCommManager.sendCanLog(frame, isRx);
+        // UWAGA: Wyłączone na czas testów - powoduje zapchanie TCP przy dużej ilości serw
+        // desktopCommManager.sendCanLog(frame, isRx);
+        ledsManager.notifyCanActivity();
     };
 
     pmpManager.onPMPframe = [](const String msg, bool isRx)
@@ -126,8 +140,10 @@ void loop()
     for (auto const &[id, servo] : servos.getServosMap())
     {
         bool sensor = digitalRead(36) == HIGH;
+        bool sensor1 = digitalRead(35) == HIGH;
+        bool sensor2 = digitalRead(39) == HIGH;
         ServoDevice *s = servos.getServo(id);
-        if (s->isCommandTimeout(5000))
+        if (s->isCommandTimeout(30000))
         {
             s->clearStatus(ServoDevice::ServoStatusFlags::ENABLED);
             s->setServoMode(99);
@@ -135,8 +151,28 @@ void loop()
         }
         if (s)
         {
-            s->makeItHome(sensor);
+            switch (id)
+            {
+            case 1:
+                s->makeItHome(sensor);
+                break;
+            case 2:
+                s->makeItHome(sensor1);
+                break;
+            case 3:
+                s->makeItHome(sensor2);
+                break;
+            }
         };
+        // if (sensor){
+        //     NetworkManager::getInstance().sendSystemLog("[MAIN] SENSOR FOUND");
+        // }
+        // if (sensor1){
+        //     NetworkManager::getInstance().sendSystemLog("[MAIN] SENSOR1 FOUND");
+        // }
+        // if (sensor2){
+        //     NetworkManager::getInstance().sendSystemLog("[MAIN] SENSOR2 FOUND");
+        // }
     }
 
     if (pmpManager.isTimeout())
@@ -151,5 +187,7 @@ void loop()
             };
         }
         NetworkManager::getInstance().sendSystemLog("[MAIN] Timeout komunikacji UDP! Serwa wyłączone");
-    }
+    };
+
+    ledsManager.update();
 };
