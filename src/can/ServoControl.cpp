@@ -130,15 +130,25 @@ bool ServoControl::parseCanTxFrame(CanFrame &frame, int id)
         frame.data[6] = (servo->acceleration >> 8) & 0xFF;
         frame.data[7] = (servo->acceleration >> 0) & 0xFF;
         break;
-    case MITVelocityLoop:
-        frame.data[0] = 0xAA;
-        frame.data[1] = 0xAA;
-        frame.data[2] = 0xAA;
-        frame.data[3] = 0xAA;
-        frame.data[4] = 0xAA;
-        frame.data[5] = 0xAA;
-        frame.data[6] = 0xAA;
-        frame.data[7] = 0xAA;
+    case MITForceControl:
+        servo->position_rad = (servo->position / 10000.0f) * (PI / 180.0f);
+        servo->speed_rad = (servo->speed / 14.0f) * (PI / 30.0f);
+        servo->current_amp = servo->current / 1000.0f;
+
+        int p_int = float_to_uint(servo->position_rad, P_MIN, P_MAX, 16);
+        int v_int = float_to_uint(servo->speed_rad, V_MIN, V_MAX, 12);
+        int kp_int = float_to_uint(servo->factorKP, KP_MIN, KP_MAX, 12);
+        int kd_int = float_to_uint(servo->factorKD, KD_MIN, KD_MAX, 12);
+        int t_int = float_to_uint(servo->current_amp, T_MIN, T_MAX, 12);
+
+        frame.data[0] = kp_int >> 4;                            // KP: 8 górnych bitów
+        frame.data[1] = ((kp_int & 0x0F) << 4) | (kd_int >> 8); // KP: 4 dolne bity | KD: 4 górne bity
+        frame.data[2] = kd_int & 0xFF;                          // KD: 8 dolnych bitów
+        frame.data[3] = p_int >> 8;                             // Pozycja: 8 górnych bitów
+        frame.data[4] = p_int & 0xFF;                           // Pozycja: 8 dolnych bitów
+        frame.data[5] = v_int >> 4;                             // Prędkość: 8 górnych bitów
+        frame.data[6] = ((v_int & 0x0F) << 4) | (t_int >> 8);   // Prędkość: 4 dolne bity | Prąd: 4 górne bity
+        frame.data[7] = t_int & 0xFF;                           // Prąd: 8 dolnych bitów
         break;
     case SetZero:
         frame.data[0] = 0x01;
@@ -426,3 +436,13 @@ std::vector<uint8_t> ServoControl::getOnlineServoIds()
     };
     return ids;
 };
+
+int float_to_uint(float x, float x_min, float x_max, int bits)
+{
+    float span = x_max - x_min;
+    if (x < x_min)
+        x = x_min;
+    else if (x > x_max)
+        x = x_max;
+    return (int)((x - x_min) * ((float)((1 << bits) - 1) / span));
+}

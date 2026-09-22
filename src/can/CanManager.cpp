@@ -23,6 +23,7 @@ void CanManager::begin()
         while (true)
         {
             Serial.println("Błąd uruchomienia CAN!");
+            NetworkManager::getInstance().sendSystemLog("[CAN] Błąd uruchomienia CAN!");
 
             delay(5000);
         }
@@ -49,6 +50,7 @@ void CanManager::begin()
         0);
 
     Serial.println("CAN Uruchomiony. Oczekiwanie na ramki...");
+    NetworkManager::getInstance().sendSystemLog("[CAN] CAN Uruchomiony. Oczekiwanie na ramki...");
 };
 
 void CanManager::readFrame()

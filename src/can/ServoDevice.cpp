@@ -64,6 +64,64 @@ int16_t ServoDevice::getParameters(RealParameter parName) const
     return 0;
 };
 
+void ServoDevice::calculateNextStep(float dt)
+{
+    // 1. Konwersja celów z PLC na ujednolicone jednostki (stopnie i stopnie/s)
+    float target_p_deg = target_position / 10000.0f;
+
+    // Konwersja prędkości: ERPM na stopnie/s (zakładając 14 par biegunów)
+    // RPM_mech = ERPM / 14. Stopnie/s = RPM_mech * (360 / 60) = ERPM * 6 / 14
+    float max_v_deg_s = (target_speed / 14.0f) * 6.0f;
+
+    // Konwersja przyspieszenia: (10 * ERPM/s^2) na stopnie/s^2
+    float max_a_deg_s2 = (target_acceleration / 10.0f / 14.0f) * 6.0f;
+
+    if (max_a_deg_s2 <= 0.01f)
+        max_a_deg_s2 = 1000.0f; // Zabezpieczenie przed dzieleniem przez zero
+
+    // 2. Obliczenia kinematyczne
+    float distance_to_target = target_p_deg - current_p_deg;
+    float dir = (distance_to_target > 0) ? 1.0f : -1.0f;
+
+    // Droga potrzebna do wyhamowania (s = v^2 / 2a)
+    float stopping_dist = (current_v_deg_s * current_v_deg_s) / (2.0f * max_a_deg_s2);
+
+    // 3. Logika profili trapezoidalnych
+    if (fabs(distance_to_target) <= stopping_dist)
+    {
+        current_v_deg_s -= dir * max_a_deg_s2 * dt; // Zwalniamy
+    }
+    else
+    {
+        current_v_deg_s += dir * max_a_deg_s2 * dt; // Przyspieszamy
+    }
+
+    // Ograniczenie prędkości do zadanego maksa
+    if (current_v_deg_s > max_v_deg_s)
+        current_v_deg_s = max_v_deg_s;
+    if (current_v_deg_s < -max_v_deg_s)
+        current_v_deg_s = -max_v_deg_s;
+
+    // 4. Aktualizacja wirtualnej pozycji
+    current_p_deg += current_v_deg_s * dt;
+
+    // Stabilizacja na celu (zapobiega drganiom)
+    if (fabs(distance_to_target) < 0.01f && fabs(current_v_deg_s) < 0.1f)
+    {
+        current_p_deg = target_p_deg;
+        current_v_deg_s = 0.0f;
+    }
+
+    // 5. ZAPIS WYNIKÓW DO ZMIENNYCH RAMKI
+    // Z tych zmiennych za chwilę skorzysta Twój blok case MITForceControl:
+    this->position = (int32_t)(current_p_deg * 10000.0f);
+    this->speed = (int32_t)(current_v_deg_s / 6.0f * 14.0f); // Powrót na ERPM
+
+    // T_ff (Feedforward) - Na początek zostaw 0.
+    // Jeśli zryw nadal będzie za mały, możesz tu dopisać logikę "wstrzykującą" np. 10000 (10A) w fazie przyspieszania.
+    this->current = 0;
+};
+
 // ###################### STATUSY SERWA ##########################
 
 int16_t ServoDevice::getServoStatus() const

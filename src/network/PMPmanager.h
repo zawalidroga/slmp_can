@@ -12,7 +12,8 @@
 
 #define PMP_SUBCMD_WRITE_GO 0x02     // wywołanie ruchu z nastawą kierunek - JOG, pozycja - jazda na pozycje, natężęnie - jazda do natężęie
 #define PMP_SUBCMD_WRITE_HOMING 0x03 //
-#define PMP_SUBCMD_WRITE_GO_MAX 0x04 //wywołanie ruchu w position loop dla maksymalnyej szybkości i przyśpieszenia
+#define PMP_SUBCMD_WRITE_GO_MAX 0x04 // wywołanie ruchu w position loop dla maksymalnyej szybkości i przyśpieszenia
+#define PMP_SUBCMD_WRITE_GO_MIT 0x05 // tryb MIT
 
 // Kody subkomend odczytu
 #define PMP_SUBCMD_READ_STATUS 0x00 // odczyt statusów
@@ -30,7 +31,7 @@
 #define HEADER_PMP 0x2137
 // #define SUBHEADER_RES 0xD000
 
-//inne stałe
+// inne stałe
 #define TIMEOUT_PMP_CONNECTION 10000
 
 #include <functional>
@@ -50,8 +51,8 @@ struct ServoCommandBlock
 class PMPmanager
 {
 private:
-    uint8_t _reqBuffer[512];
-    uint8_t _resBuffer[512];
+    uint8_t _reqBuffer[1024];
+    uint8_t _resBuffer[1024];
 
     ServoControl &_servoManager;
 

@@ -50,8 +50,18 @@ void PMPmanager::frameHandler(uint8_t *data, size_t packetSize, IPAddress remote
 
     for (size_t i = 0; i < servosNo; i++)
     {
+        if (servosNo > 5)
+            return;
         ServoDevice *servo = _servoManager.getServo(currentBlock->id);
-        servo->updateLastCommandTime();
+        if (servo == nullptr)
+        {
+            endCode = PMP_ERR_INVALID_ID;
+        }
+        else
+        {
+            servo->updateLastCommandTime();
+        }
+
         if (currentBlock->cmd != PMP_CMD_DEVICE_READ)
         {
             if (servo == nullptr)
@@ -152,6 +162,9 @@ void PMPmanager::frameHandler(uint8_t *data, size_t packetSize, IPAddress remote
                 servo->acceleration = currentBlock->acceleration;
                 servo->position = currentBlock->position;
             }
+            case PMP_SUBCMD_WRITE_GO_MIT:
+            {
+                        }
             default:
                 NetworkManager::getInstance().sendSystemLog("[PMP] WRONG SUBCMD NO!");
                 endCode = PMP_ERR_INVALID_CMD;

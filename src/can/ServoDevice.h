@@ -39,7 +39,7 @@ private:
 
     uint32_t _targetPosition = 0;
     uint16_t _inPositionOffset = 10; // domyślna wartość
-    uint16_t _busyOffset = 50;       // Zwiększony próg, aby ignorować szumy prędkości
+    uint16_t _busyOffset = 50;
 
 public:
     enum class ServoStatusFlags : uint16_t
@@ -89,13 +89,23 @@ public:
         INVALID_PARAM
     };
 
+    int32_t target_position = 0;     // Docelowa pozycja z PLC (-360000000 do 360000000)
+    int32_t target_speed = 0;        // Maksymalna prędkość z PLC w ERPM
+    int16_t target_acceleration = 0; // Przyspieszenie z PLC (10 * elec RPM/s2)
+
+    float current_p_deg = 0.0f;   // Bieżąca wirtualna pozycja w stopniach
+    float current_v_deg_s = 0.0f; // Bieżąca wirtualna prędkość w stopniach/s
+
     int32_t current = 0;      // wartości od -60000 do 600000 co reprezentuje -60A - 60A
     int32_t brakeCurrent = 0; // wartości od 0 do 600000 co reprezentuje 0A - 60A
     int32_t speed = 0;        // wartości od -100000 do 100000 co reprezentuje -100000 do 100000 electrical RPM - dla position loop -32767 do 32676 bo przekazujemy int16
     int32_t position = 0;     // wartości od -360000000 do 360000000 co reprezentuje -36000 deg do 36000 deg
     int16_t acceleration = 0; // wartości od 0 do 32767 co reprezentuje 0 do 32767 *10 elec RPM/s2
-    int16_t factorKP = 0;
-    int16_t factorKD = 0;
+    float position_rad;
+    float speed_rad;
+    float current_amp;
+    float factorKP = 30;
+    float factorKD = 1;
     int32_t homingSpeed = 100;
     int32_t homingTimeout = 30000; // ms
 
@@ -141,6 +151,8 @@ public:
 
     void saveState(Preferences &prefs);
     void loadState(Preferences &prefs);
+
+    void calculateNextStep(float dt);
 
     static RealParameter toRealParameter(int value);
     static ParameterServo toParameterServo(int value);

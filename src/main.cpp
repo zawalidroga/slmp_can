@@ -47,8 +47,8 @@ void setup()
     {
         delay(500);
         Serial.print(".");
-        ledsManager.rstHeartbeat();
     };
+    ledsManager.setHeartbeat(true);
     Serial.println("\nEthernet connected!");
     Serial.print("IP address: ");
     Serial.println(ETH.localIP());
@@ -86,7 +86,6 @@ void setup()
 
     servos.onCanFrame = [](const CanFrame &frame, bool isRx)
     {
-        // UWAGA: Wyłączone na czas testów - powoduje zapchanie TCP przy dużej ilości serw
         // desktopCommManager.sendCanLog(frame, isRx);
         ledsManager.notifyCanActivity();
     };
@@ -122,7 +121,7 @@ void loop()
 
     if (millis() - lastServoConnectionCheck > SERVO_CONNECTION_CKECK_INTERVAL)
     {
-        ;
+
         lastServoConnectionCheck = millis();
         servos.checkServoConnection();
     }
@@ -157,20 +156,23 @@ void loop()
                 s->makeItHome(sensor);
                 break;
             case 2:
-                s->makeItHome(sensor1);
+                s->makeItHome(sensor2);
                 break;
             case 3:
-                s->makeItHome(sensor2);
+                s->makeItHome(sensor1);
                 break;
             }
         };
-        // if (sensor){
+        // if (sensor)
+        // {
         //     NetworkManager::getInstance().sendSystemLog("[MAIN] SENSOR FOUND");
         // }
-        // if (sensor1){
+        // if (sensor1)
+        // {
         //     NetworkManager::getInstance().sendSystemLog("[MAIN] SENSOR1 FOUND");
         // }
-        // if (sensor2){
+        // if (sensor2)
+        // {
         //     NetworkManager::getInstance().sendSystemLog("[MAIN] SENSOR2 FOUND");
         // }
     }
@@ -190,4 +192,25 @@ void loop()
     };
 
     ledsManager.update();
+
+    if (!networkManager.isConnected())
+    {
+        ledsManager.setHeartbeat(true);
+        ledsManager.setError(StatusLEDs::ErrorStatus::ETH_DISCONNECTED);
+        for (auto const &[id, servo] : servos.getServosMap())
+        {
+            ServoDevice *s = servos.getServo(id);
+            if (s && s->isStatusSet(ServoDevice::ServoStatusFlags::ENABLED))
+            {
+                s->clearStatus(ServoDevice::ServoStatusFlags::ENABLED);
+                s->setServoMode(99);
+            };
+        }
+        NetworkManager::getInstance().sendSystemLog("[MAIN] Kabel sieciowy odłączony!");
+    }
+    else
+    {
+        ledsManager.setHeartbeat(false);
+        ledsManager.setError(StatusLEDs::ErrorStatus::IDLE);
+    }
 };

@@ -29,8 +29,8 @@ void NetworkManager::begin()
 
 void NetworkManager::ethEvent(arduino_event_id_t event, arduino_event_info_t info)
 {
-    IPAddress local_IP(192, 168, 10, 205);
-    IPAddress gateway(192, 168, 10, 1);
+    IPAddress local_IP(10, 22, 87, 9);
+    IPAddress gateway(10, 22, 87, 100);
     IPAddress subnet(255, 255, 255, 0);
     IPAddress primaryDNS(8, 8, 8, 8);
     IPAddress secondaryDNS(8, 8, 4, 4);

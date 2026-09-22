@@ -31,9 +31,9 @@ void StatusLEDs::notifyCanActivity()
     _orangeOffTime = millis() + 40;
 };
 
-void StatusLEDs::setError(bool active)
+void StatusLEDs::setError(ErrorStatus error)
 {
-    _erroAvtive = active;
+    _activeErorStatus = error;
 };
 
 void StatusLEDs::setPMPError(bool active)
@@ -51,7 +51,7 @@ void StatusLEDs::_processGreen()
 {
     if (_heartbeatState)
     {
-        bool state = (millis() / 100) % 2;
+        bool state = (millis() / 1000) % 2;
         digitalWrite(GREEN_PIN, state);
     }
     else if (!_heartbeatState && millis() > _greenOnTime)
@@ -72,7 +72,7 @@ void StatusLEDs::_processOrange()
 
 void StatusLEDs::_processRed()
 {
-    if (_erroAvtive)
+    if (_activeErorStatus == ErrorStatus::ETH_DISCONNECTED)
     {
         bool state = (millis() / 100) % 2;
         digitalWrite(RED_PIN, state);
