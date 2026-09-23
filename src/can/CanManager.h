@@ -17,8 +17,10 @@ public:
     void readFrame();
     void sendFrame(const CanFrame &frame);
 
+    bool sendFrameAsync(const CanFrame &frame);
+
     std::function<void(const CanFrame &)> onReadFrame; // callback - do funckji onFrame przypisuje odpowiednią funkcje która w odpowiedni sposób obrobi ramkę rozkładając ją na potrzebne dane
-    std::function<bool(CanFrame &, const int)> onWriteFrame;
+    // std::function<bool(CanFrame &, const int)> onWriteFrame;
     std::function<int()> deviceNo;
     std::function<std::vector<uint8_t>()> getOnlineServosIDs;
     std::function<std::vector<uint8_t>()> getAllServosIDs;

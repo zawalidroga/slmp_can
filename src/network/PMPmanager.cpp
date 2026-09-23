@@ -135,8 +135,12 @@ void PMPmanager::frameHandler(uint8_t *data, size_t packetSize, IPAddress remote
                 break;
             };
             case PMP_SUBCMD_WRITE_GO_MAX:
-                servo->setServoMode(4);
-                servo->position = currentBlock->position;
+                // servo->setServoMode(4);
+                // servo->position = currentBlock->position;
+                servo->setServoMode(8);
+                servo->target_position = currentBlock->position;
+                servo->target_speed = currentBlock->speed;
+                servo->target_acceleration = currentBlock->acceleration;
                 break;
 
             case PMP_SUBCMD_WRITE_HOMING:
@@ -166,12 +170,15 @@ void PMPmanager::frameHandler(uint8_t *data, size_t packetSize, IPAddress remote
             {
                         }
             default:
-                NetworkManager::getInstance().sendSystemLog("[PMP] WRONG SUBCMD NO!");
+            {
+                String warningTXT = "[PMP] WRONG SUBCMD NO! SUBCMD NO: " + currentBlock->subcmd;
+                NetworkManager::getInstance().sendSystemLog(warningTXT);
                 endCode = PMP_ERR_INVALID_CMD;
                 break;
             }
 
             break;
+            }
         }
         case PMP_CMD_DEVICE_ONOFF:
 

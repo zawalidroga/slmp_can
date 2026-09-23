@@ -10,6 +10,8 @@ void CanManager::begin()
     ESP32Can.setTxQueueSize(20);
     ESP32Can.setSpeed(ESP32Can.convertSpeed(1000));
 
+    _canSendQueue = xQueueCreate(30, sizeof(CanFrame));
+
     _fConfig.acceptance_code = 0x00002800;
     _fConfig.acceptance_mask = 0xffffffff; // trzeba zmienić
     // Ustawienie filtra tak, aby akceptował wszystkie ramki CAN.
@@ -62,6 +64,14 @@ void CanManager::readFrame()
     };
 };
 
+bool CanManager::sendFrameAsync(const CanFrame &frame)
+{
+    if (_canSendQueue == NULL)
+        return false;
+    // Wrzuca ramkę natychmiast (0 opóźnienia), aby nie blokować obliczeń
+    return (xQueueSend(_canSendQueue, &frame, 0) == pdTRUE);
+}
+
 void CanManager::_canSendTask(void *pvParameters)
 {
     CanManager *manager = (CanManager *)pvParameters;
@@ -69,28 +79,15 @@ void CanManager::_canSendTask(void *pvParameters)
 
     for (;;)
     {
-
-        if (manager->onWriteFrame && manager->deviceNo)
+        // Wątek czeka w uśpieniu na pojawienie się ramki w kolejce
+        if (xQueueReceive(manager->_canSendQueue, &frameToSend, portMAX_DELAY) == pdTRUE)
         {
-            std::vector<uint8_t> servoIDs = manager->getAllServosIDs ? manager->getAllServosIDs() : std::vector<uint8_t>();
-            if (!servoIDs.empty())
+            if (ESP32Can.writeFrame(frameToSend, pdMS_TO_TICKS(1)) != ESP_OK)
             {
-                for (uint8_t id : servoIDs)
-                {
-                    if (manager->onWriteFrame(manager->txFrame, id))
-                    {
-
-                        if (ESP32Can.writeFrame(manager->txFrame, pdMS_TO_TICKS(1)) != ESP_OK)
-                        {
-                            // Opcjonalnie: obsługa błędu, gdy kolejka TX jest pełna
-                        }
-                        // vTaskDelay(pdMS_TO_TICKS(1)); // Ten wewnętrzny delay nie jest konieczny, jeśli główna pętla ma wystarczające opóźnienie
-                    }
-                }
+                // Błąd wysyłki (można dodać logowanie)
             }
-        };
-        vTaskDelay(pdMS_TO_TICKS(10)); // Zwiększamy opóźnienie, aby zmniejszyć częstotliwość odpytywania i odciążyć system
-    };
+        }
+    }
 };
 
 void CanManager::_canReadTask(void *pvParameters)

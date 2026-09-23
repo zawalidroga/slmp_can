@@ -4,7 +4,7 @@
 void ServoDevice::setServoMode(int8_t mode)
 {
 
-    if (mode >= 0 && mode <= 7)
+    if (mode >= 0 && mode <= 8)
     {
         _servoMode = mode;
         if (onStateChanged)
@@ -173,7 +173,7 @@ void ServoDevice::updateBusyStatus()
     {
         // Jeśli prędkość jest powyżej progu, serwo jest zajęte.
         setStatus(ServoStatusFlags::BUSY);
-        if (_servoMode == 6)
+        if (_servoMode == 6 || _servoMode == 8)
         {
             setStatus(ServoStatusFlags::BUSY_POSITIONING);
         }
@@ -344,7 +344,7 @@ bool ServoDevice::isCommandTimeout(unsigned long timeoutMs)
 void ServoDevice::makeItHome(bool sensorAcitve)
 {
     String servoIdStr = String(this->_id);
-    String txt = "[Servo" + servoIdStr;
+    String txt = "[Servo" + servoIdStr + this->_servoMode;
     String txtFin = txt + "] ";
 
     switch (homingStep)
@@ -352,11 +352,13 @@ void ServoDevice::makeItHome(bool sensorAcitve)
     case HomingState::IDLE:
         break;
     case HomingState::START_HOMING:
-        NetworkManager::getInstance().sendSystemLog(txtFin + "START HOMING " + isHomingReverse);
+
         _startHomingTime = millis();
         this->setStatus(ServoDevice::ServoStatusFlags::HPR_BUSY);
         this->setServoMode(3); // Veloxity loop
         this->speed = isHomingReverse ? -this->homingSpeed : this->homingSpeed;
+        txt = "[Servo" + servoIdStr + this->_servoMode;
+        NetworkManager::getInstance().sendSystemLog(txtFin + "START HOMING " + isHomingReverse);
         homingStep = HomingState::MOVING_TO_SENSOR;
         break;
 

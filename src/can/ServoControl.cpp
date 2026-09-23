@@ -3,14 +3,15 @@
 #include "../network/DesktopCommManager.h"
 #include "../network/NetworkManager.h"
 #include "../Settings/SettingManager.h"
+#include "math.h"
 
 ServoControl::ServoControl(CanManager &can)
     : _can(can)
 { // ustawienie onFrame jako funkcji wywołującej parsCanFrame (callback)
     can.onReadFrame = [this](const CanFrame &frame)
     { parseCanRxFrame(frame); }; // przekazanie ramki
-    can.onWriteFrame = [this](CanFrame &frame, const int id)
-    { return parseCanTxFrame(frame, id); }; // przekazanie ramki
+    // can.onWriteFrame = [this](CanFrame &frame, const int id)
+    //{ return parseCanTxFrame(frame, id); }; // przekazanie ramki
     can.deviceNo = [this]()
     { return servos.size(); }; // przekazanie liczby serw
     can.getOnlineServosIDs = [this]()
@@ -37,7 +38,55 @@ void ServoControl::begin()
             // servo.clearStatus(ServoDevice::ServoStatusFlags::READY_ON);
         }
     }
+
+    xTaskCreatePinnedToCore(
+        ServoControl::_motionTask,
+        "MotionTask",
+        8192, // Większy stos ze względu na floaty
+        this,
+        10, // Priorytet wyższy niż odczyt CAN, aby utrzymać rytm dt
+        &_motionTaskHandle,
+        1 // Rdzeń aplikacji
+    );
 };
+
+void ServoControl::_motionTask(void *pvParameters)
+{
+    ServoControl *controller = (ServoControl *)pvParameters;
+
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    const TickType_t xFrequency = pdMS_TO_TICKS(2); // Czas cyklu: 2ms (500Hz)
+
+    for (;;)
+    {
+        // Rygorystyczne usypianie taska
+        vTaskDelayUntil(&xLastWakeTime, xFrequency);
+
+        // Iterujemy po podłączonych serwach
+        for (auto const &[id, servo] : controller->getServosMap())
+        {
+            ServoDevice *s = controller->getServo(id);
+
+            // Generujemy krok tylko dla włączonych serw
+            if (s && s->isStatusSet(ServoDevice::ServoStatusFlags::ENABLED))
+            {
+                // Obliczanie mikrokroku (uruchamiane tylko jeśli silnik w trybie MIT)
+                if (s->getServoMode() == MITForceControl)
+                {
+                    s->calculateNextStep(0.002f);
+                }
+
+                // Generowanie ramki (Twoja istniejąca metoda robi to idealnie)
+                CanFrame txFrame;
+                if (controller->parseCanTxFrame(txFrame, id))
+                {
+                    // Wysłanie asynchronicznie do wątku _canSendTask
+                    controller->_can.sendFrameAsync(txFrame);
+                }
+            }
+        }
+    }
+}
 
 bool ServoControl::parseCanTxFrame(CanFrame &frame, int id)
 {
@@ -130,9 +179,22 @@ bool ServoControl::parseCanTxFrame(CanFrame &frame, int id)
         frame.data[6] = (servo->acceleration >> 8) & 0xFF;
         frame.data[7] = (servo->acceleration >> 0) & 0xFF;
         break;
+
+    case SetZero:
+        frame.data[0] = 0x01;
+        frame.data[1] = 0xFF;
+        frame.data[2] = 0xFF;
+        frame.data[3] = 0xFF;
+        frame.data[4] = 0xFF;
+        frame.data[5] = 0xFF;
+        frame.data[6] = 0xFF;
+        frame.data[7] = 0xFF;
+        break;
+
     case MITForceControl:
-        servo->position_rad = (servo->position / 10000.0f) * (PI / 180.0f);
-        servo->speed_rad = (servo->speed / 14.0f) * (PI / 30.0f);
+    {
+        servo->position_rad = (servo->target_position / 10000.0f) * (PI / 180.0f);
+        servo->speed_rad = (servo->target_speed / 14.0f) * (PI / 30.0f);
         servo->current_amp = servo->current / 1000.0f;
 
         int p_int = float_to_uint(servo->position_rad, P_MIN, P_MAX, 16);
@@ -150,16 +212,7 @@ bool ServoControl::parseCanTxFrame(CanFrame &frame, int id)
         frame.data[6] = ((v_int & 0x0F) << 4) | (t_int >> 8);   // Prędkość: 4 dolne bity | Prąd: 4 górne bity
         frame.data[7] = t_int & 0xFF;                           // Prąd: 8 dolnych bitów
         break;
-    case SetZero:
-        frame.data[0] = 0x01;
-        frame.data[1] = 0xFF;
-        frame.data[2] = 0xFF;
-        frame.data[3] = 0xFF;
-        frame.data[4] = 0xFF;
-        frame.data[5] = 0xFF;
-        frame.data[6] = 0xFF;
-        frame.data[7] = 0xFF;
-        break;
+    };
     default:
         return false;
     };
@@ -437,7 +490,7 @@ std::vector<uint8_t> ServoControl::getOnlineServoIds()
     return ids;
 };
 
-int float_to_uint(float x, float x_min, float x_max, int bits)
+int ServoControl::float_to_uint(float x, float x_min, float x_max, int bits)
 {
     float span = x_max - x_min;
     if (x < x_min)

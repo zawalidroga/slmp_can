@@ -29,6 +29,9 @@ private:
     Preferences _prefs;
     // PMPmanager &_slmp;
 
+    TaskHandle_t _motionTaskHandle;
+    static void _motionTask(void *pvParameters);
+
     enum ServoMode : byte
     {
         DutyCycle = 0,
@@ -40,11 +43,11 @@ private:
         PositionVelocityLoop = 6,
         MITForceControl = 8,
         SERVO_OFF = 99
-
     };
 
     void _saveServoList();
     void _loadServoList();
+    int float_to_uint(float x, float x_min, float x_max, int bits);
 
 public:
     uint16_t idRecieved = 0;
